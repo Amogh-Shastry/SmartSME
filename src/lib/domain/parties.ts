@@ -1,0 +1,51 @@
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import * as s from "@/db/schema";
+
+export interface PartyInput {
+  type: "customer" | "supplier";
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  gstNumber?: string | null;
+  address?: string | null;
+  openingBalance?: number;
+}
+
+export async function createParty(businessId: string, input: PartyInput) {
+  if (!input.name.trim()) throw new Error("Name is required.");
+  const [party] = await db
+    .insert(s.parties)
+    .values({
+      businessId,
+      type: input.type === "supplier" ? "supplier" : "customer",
+      name: input.name.trim(),
+      phone: input.phone || null,
+      email: input.email || null,
+      gstNumber: input.gstNumber || null,
+      address: input.address || null,
+      balance: input.openingBalance ?? 0,
+    })
+    .returning();
+  return party;
+}
+
+export async function updateParty(businessId: string, partyId: string, input: PartyInput) {
+  await db
+    .update(s.parties)
+    .set({
+      type: input.type === "supplier" ? "supplier" : "customer",
+      name: input.name.trim(),
+      phone: input.phone || null,
+      email: input.email || null,
+      gstNumber: input.gstNumber || null,
+      address: input.address || null,
+    })
+    .where(and(eq(s.parties.id, partyId), eq(s.parties.businessId, businessId)));
+}
+
+export async function deleteParty(businessId: string, partyId: string) {
+  await db
+    .delete(s.parties)
+    .where(and(eq(s.parties.id, partyId), eq(s.parties.businessId, businessId)));
+}

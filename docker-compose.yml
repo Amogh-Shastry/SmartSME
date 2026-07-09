@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: smartsme
+      POSTGRES_PASSWORD: smartsme
+      POSTGRES_DB: smartsme
+    ports:
+      - "5432:5432"
+    volumes:
+      - smartsme_pgdata:/var/lib/postgresql/data
+
+volumes:
+  smartsme_pgdata:
