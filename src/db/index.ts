@@ -13,7 +13,7 @@ const g = globalThis as unknown as {
 };
 
 // All driver imports are dynamic + webpackIgnore so the bundler never tries to
-// bundle postgres/PGlite (and their node:net / node:crypto / WASM deps) — which
+// bundle postgres/PGlite (and their node:net / node:crypto / WASM deps), which
 // breaks in the instrumentation/edge compilation layers. They resolve natively
 // at runtime instead.
 async function initDb(): Promise<Database> {
@@ -61,7 +61,7 @@ async function runMigrations(): Promise<void> {
 }
 
 /**
- * Initializes the driver, applies migrations, and seeds demo data — exactly
+ * Initializes the driver, applies migrations, and seeds demo data, exactly
  * once per process. Awaited from instrumentation before the server accepts
  * requests, so `db` is ready for any server component or action.
  */

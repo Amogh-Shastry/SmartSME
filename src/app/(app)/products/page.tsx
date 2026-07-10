@@ -71,7 +71,7 @@ export default async function ProductsPage() {
                       <div className="font-medium">{p.name}</div>
                       {p.hsn && <div className="text-xs text-muted-foreground">HSN {p.hsn}</div>}
                     </TD>
-                    <TD className="text-muted-foreground">{p.sku ?? "—"}</TD>
+                    <TD className="text-muted-foreground">{p.sku ?? "-"}</TD>
                     <TD className="text-right tabular-nums">{money(p.purchasePrice, cur)}</TD>
                     <TD className="text-right tabular-nums">{money(p.sellingPrice, cur)}</TD>
                     <TD className="text-right">

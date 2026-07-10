@@ -105,8 +105,8 @@ export default async function PartiesPage({
                       {p.type === "customer" ? "Customer" : "Supplier"}
                     </Badge>
                   </TD>
-                  <TD className="text-muted-foreground">{p.phone ?? p.email ?? "—"}</TD>
-                  <TD className="text-muted-foreground">{p.gstNumber ?? "—"}</TD>
+                  <TD className="text-muted-foreground">{p.phone ?? p.email ?? "-"}</TD>
+                  <TD className="text-muted-foreground">{p.gstNumber ?? "-"}</TD>
                   <TD className="text-right">
                     <span
                       className={cn(

@@ -1,5 +1,5 @@
 // Password hashing via the global Web Crypto API (PBKDF2-SHA256). Using the
-// global `crypto` means there is no module import for the bundler to choke on —
+// global `crypto` means there is no module import for the bundler to choke on -
 // the same approach `jose` uses. Available in Node 20+ and every JS runtime.
 // Format: pbkdf2$<saltHex>$<hashHex>
 

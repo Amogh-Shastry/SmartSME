@@ -7,7 +7,7 @@ import { round2 } from "@/lib/utils";
 
 // Any db-or-transaction handle. The whole handler runs inside one transaction
 // so an event's effects (inventory, balances, chained events, alerts) either
-// all commit or all roll back — making auto-retries safe (no double-apply).
+// all commit or all roll back, making auto-retries safe (no double-apply).
 type Exec = Pick<Database, "select" | "insert" | "update" | "delete" | "execute">;
 
 // ---------------------------------------------------------------------------
@@ -70,6 +70,9 @@ async function recordExecution(
 function conditionMet(rule: WorkflowRule, ctx: Record<string, unknown>): boolean {
   if (!rule.conditionField || !rule.conditionOp || rule.conditionValue == null) return true;
   const raw = ctx[rule.conditionField];
+  // Fail closed when the field is absent from the event context, so a "not equal"
+  // rule can't match on a field that simply isn't there.
+  if (!(rule.conditionField in ctx) || raw === undefined) return false;
   const target = rule.conditionValue;
   const a = Number(raw);
   const b = Number(target);
@@ -106,7 +109,7 @@ async function loadRules(exec: Exec, businessId: string, eventType: string): Pro
 }
 
 // ---------------------------------------------------------------------------
-// Entry point — called by the worker for each claimed event. The entire unit
+// Entry point, called by the worker for each claimed event. The entire unit
 // of work runs in one transaction (atomic + retry-safe).
 // ---------------------------------------------------------------------------
 export async function runWorkflowRules(event: EventRow): Promise<void> {
@@ -142,10 +145,13 @@ async function applySale(exec: Exec, event: EventRow): Promise<number> {
   const saleId = String(event.payload.saleId);
   const [sale] = await exec.select().from(s.sales).where(eq(s.sales.id, saleId));
   if (!sale) throw new Error(`Sale not found: ${saleId}`);
+  // A sale cancelled before its create event was applied must not move stock or
+  // balances (cancelSale already reverses anything that was applied).
+  if (sale.status === "cancelled") return 0;
   const items = await exec.select().from(s.saleItems).where(eq(s.saleItems.saleId, saleId));
 
   // Replay guard for product sales: if stock movements already exist, this sale
-  // was applied by an earlier successful run — skip so a manual replay can't
+  // was applied by an earlier successful run, skip so a manual replay can't
   // double-apply. (Auto-retries are already safe: the transaction rolls back.)
   const prior = await exec
     .select({ id: s.stockMovements.id })
@@ -180,7 +186,7 @@ async function applySale(exec: Exec, event: EventRow): Promise<number> {
       .where(eq(s.parties.id, sale.partyId));
   }
 
-  // Chained events — inserted in the same transaction, so they're never lost.
+  // Chained events, inserted in the same transaction, so they're never lost.
   for (const productId of affected) {
     await publish(exec, event.businessId, "STOCK_UPDATED", { productId, cause: "sale", refId: sale.id });
   }
@@ -191,6 +197,7 @@ async function applyPurchase(exec: Exec, event: EventRow): Promise<number> {
   const purchaseId = String(event.payload.purchaseId);
   const [pur] = await exec.select().from(s.purchases).where(eq(s.purchases.id, purchaseId));
   if (!pur) throw new Error(`Purchase not found: ${purchaseId}`);
+  if (pur.status === "cancelled") return 0;
   const items = await exec.select().from(s.purchaseItems).where(eq(s.purchaseItems.purchaseId, purchaseId));
 
   const prior = await exec

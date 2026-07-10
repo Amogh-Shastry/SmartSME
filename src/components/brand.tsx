@@ -4,10 +4,15 @@ export function BrandMark({ className, size = 32 }: { className?: string; size?:
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-sm",
+        "relative inline-flex items-center justify-center rounded-[30%] font-bold text-primary-foreground shadow-sm ring-1 ring-inset ring-white/20",
         className,
       )}
-      style={{ width: size, height: size, fontSize: size * 0.5 }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.5,
+        backgroundImage: "linear-gradient(140deg, var(--primary-hover), var(--primary))",
+      }}
     >
       S
     </span>

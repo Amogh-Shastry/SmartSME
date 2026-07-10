@@ -18,7 +18,7 @@ const isServerless = Boolean(process.env.VERCEL) || process.env.SMARTSME_NO_WORK
 
 /**
  * Processes one batch of pending events. Claims each (SET status='processing'),
- * runs its workflow rules, marks it done — or retries with a bounded count and
+ * runs its workflow rules, marks it done, or retries with a bounded count and
  * dead-letters after MAX_RETRIES. Returns the number of events processed.
  */
 async function processBatch(): Promise<number> {
@@ -31,7 +31,7 @@ async function processBatch(): Promise<number> {
 
   let processed = 0;
   for (const ev of pending) {
-    // Atomic claim — guards against double-processing if two drains overlap.
+    // Atomic claim, guards against double-processing if two drains overlap.
     const claimed = await db
       .update(events)
       .set({ status: "processing" })
@@ -72,7 +72,7 @@ export async function tick(): Promise<void> {
 /**
  * Drains the whole queue synchronously, following event chains (a sale emits
  * STOCK_UPDATED, which may raise alerts) until nothing is left. Called right
- * after a business write so effects apply within the request — the mechanism
+ * after a business write so effects apply within the request, the mechanism
  * that makes the event bus work on serverless where the interval can't run.
  */
 export async function drainQueue(maxRounds = 12): Promise<number> {
@@ -88,7 +88,7 @@ export async function drainQueue(maxRounds = 12): Promise<number> {
 export function startWorker(): void {
   if (isServerless) {
     // On serverless we drain synchronously after each write (see drainQueue),
-    // and/or via the /api/worker cron endpoint — no background interval.
+    // and/or via the /api/worker cron endpoint, no background interval.
     return;
   }
   if (globalForWorker.__smartsmeWorker) return;

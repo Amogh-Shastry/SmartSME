@@ -12,7 +12,7 @@ export interface AuthContext {
 
 // Deduped per request via React cache.
 export const getCurrentUser = cache(async (): Promise<AuthContext | null> => {
-  // Guarantees the DB connection is initialized before any query — runs on
+  // Guarantees the DB connection is initialized before any query, runs on
   // every page and server action (both call requireUser), so it doesn't rely
   // on instrumentation timing (important on serverless / Vercel).
   await ensureReady();
@@ -28,7 +28,7 @@ export const getCurrentUser = cache(async (): Promise<AuthContext | null> => {
   return { user, business };
 });
 
-// Use in authenticated pages/actions — redirects to sign-in when absent.
+// Use in authenticated pages/actions, redirects to sign-in when absent.
 export async function requireUser(): Promise<AuthContext> {
   const ctx = await getCurrentUser();
   if (!ctx) redirect("/sign-in");

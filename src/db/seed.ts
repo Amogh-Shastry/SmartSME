@@ -192,7 +192,7 @@ export async function seedIfEmpty(): Promise<void> {
       conditionOp: "gt",
       conditionValue: "10000",
       actionType: "flag_expense",
-      actionConfig: { label: "High-value expense — needs review" },
+      actionConfig: { label: "High-value expense, needs review" },
     },
     {
       businessId: biz.id,

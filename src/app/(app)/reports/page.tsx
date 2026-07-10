@@ -32,7 +32,7 @@ export default async function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Revenue — last 14 days</CardTitle>
+          <CardTitle>Revenue (last 14 days)</CardTitle>
         </CardHeader>
         <CardContent>
           <MiniBars data={o.revenueSeries} height={160} />

@@ -44,7 +44,7 @@ export default async function ExpensesPage() {
         <StatCard label="All time" value={money(total, cur)} icon={<Icon name="wallet" />} tone="primary" />
         <StatCard
           label="Top category"
-          value={topCategories[0]?.[0] ?? "—"}
+          value={topCategories[0]?.[0] ?? "-"}
           sub={topCategories[0] ? money(topCategories[0][1], cur) : undefined}
           icon={<Icon name="reports" />}
           tone="info"

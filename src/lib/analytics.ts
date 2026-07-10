@@ -115,7 +115,7 @@ export async function loadOverview(businessId: string, days = 14): Promise<Overv
     .filter((p) => p.stock <= p.lowStockThreshold)
     .sort((a, b) => a.stock - b.stock);
 
-  // ---- Business health (heuristic 0–100) ----
+  // ---- Business health (heuristic 0-100) ----
   const healthyStock = products.filter((p) => p.stock > p.lowStockThreshold).length;
   const inventory = products.length === 0 ? 100 : clamp((healthyStock / products.length) * 100);
 

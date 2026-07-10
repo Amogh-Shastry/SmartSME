@@ -4,9 +4,23 @@ import { cookies } from "next/headers";
 export const SESSION_COOKIE = "smartsme_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-const secret = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "smartsme-dev-insecure-secret-change-me",
-);
+function resolveSecret(): Uint8Array {
+  const raw = process.env.AUTH_SECRET;
+  // In a running production server, refuse to fall back to a public, guessable
+  // secret: anyone who knows it could forge a session for any user. Fail closed.
+  // The compile step (next build) has no runtime secret and must not be blocked,
+  // so we only enforce this when actually serving.
+  if (!raw || raw.length < 32) {
+    const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+    if (process.env.NODE_ENV === "production" && !isBuild) {
+      throw new Error("AUTH_SECRET must be set to a random value of at least 32 characters in production.");
+    }
+    return new TextEncoder().encode("smartsme-dev-insecure-secret-change-me");
+  }
+  return new TextEncoder().encode(raw);
+}
+
+const secret = resolveSecret();
 
 export async function createSessionToken(userId: string): Promise<string> {
   return new SignJWT({ sub: userId })

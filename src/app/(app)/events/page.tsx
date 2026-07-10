@@ -40,7 +40,7 @@ export default async function EventsPage() {
       <AutoRefresh intervalMs={3000} />
       <PageHeader
         title="Event bus"
-        description="The outbox: every business change becomes an event that the worker drains. Publish, retry, dead-letter, and replay — as plain SQL."
+        description="The outbox: every business change becomes an event that the worker drains. Publish, retry, dead-letter, and replay, as plain SQL."
       />
 
       <Card className="flex flex-wrap items-center gap-2 p-3 text-sm">

@@ -40,7 +40,7 @@ export default async function InputPage() {
     <div className="space-y-6">
       <PageHeader
         title="Smart Input Engine"
-        description="Turn plain language or a photo into structured business events — you approve before anything is published."
+        description="Turn plain language or a photo into structured business events. You approve before anything is published."
       />
 
       <Card className="p-4">

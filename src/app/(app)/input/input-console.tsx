@@ -58,9 +58,13 @@ export function InputConsole({
     setError(null);
     setSuccess(null);
     start(async () => {
-      const res = await parseTextAction(text);
-      if (res.error) setError(res.error);
-      else setDraft(res.draft!);
+      try {
+        const res = await parseTextAction(text);
+        if (res.error) setError(res.error);
+        else setDraft(res.draft!);
+      } catch {
+        setError("Could not reach the server. Please try again.");
+      }
     });
   }
 
@@ -74,11 +78,16 @@ export function InputConsole({
       const dataUrl = String(reader.result);
       setPreview(dataUrl);
       start(async () => {
-        const res = await parseImageAction(dataUrl);
-        if (res.error) setError(res.error);
-        else setDraft(res.draft!);
+        try {
+          const res = await parseImageAction(dataUrl);
+          if (res.error) setError(res.error);
+          else setDraft(res.draft!);
+        } catch {
+          setError("Could not process that image. It may be too large. Try a smaller photo.");
+        }
       });
     };
+    reader.onerror = () => setError("Could not read that file.");
     reader.readAsDataURL(file);
   }
 
@@ -148,7 +157,7 @@ export function InputConsole({
           </div>
           <div className="mt-4 flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {hasAI ? "Parsed by Claude." : "Parsed by the built-in engine — add an API key for smarter parsing."}
+              {hasAI ? "Parsed by Claude." : "Parsed by the built-in engine. Add an API key for smarter parsing."}
             </p>
             <Button onClick={parseText} disabled={pending || !text.trim()}>
               {pending ? "Parsing…" : "Parse"} <Icon name="chevronRight" size={16} />
@@ -262,7 +271,7 @@ function DraftConfirm({
         <span className="font-medium text-foreground">Detected:</span> {draft.note}
         {draft.partyName && !matchedInList && (
           <div className="mt-1 text-xs text-warning">
-            “{draft.partyName}” isn’t in your parties yet — pick one below or add it later.
+            “{draft.partyName}” isn’t in your parties yet. Pick one below or add it later.
           </div>
         )}
       </div>

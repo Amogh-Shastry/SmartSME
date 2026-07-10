@@ -101,7 +101,7 @@ export function heuristicParse(text: string): Omit<ParsedCommand, "engine"> {
   const qtyMatch = text.match(/\b(\d[\d,]*(?:\.\d+)?)\b/);
   const firstNumber = qtyMatch ? Number(qtyMatch[1].replace(/,/g, "")) : null;
 
-  // Note: "at" is intentionally excluded — it usually marks a unit price
+  // Note: "at" is intentionally excluded, it usually marks a unit price
   // ("5 bags at 100 each"), not the total.
   const amtMatch = text.match(/(?:₹|rs\.?|inr|worth|for|amount)\s*(\d[\d,]*(?:\.\d+)?)/i);
   let amount = amtMatch ? Number(amtMatch[1].replace(/,/g, "")) : null;

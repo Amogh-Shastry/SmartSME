@@ -5,6 +5,7 @@ import { publish } from "@/lib/events/publish";
 import { paymentStatusFor } from "@/lib/workflow/engine";
 import { drainQueue } from "@/worker/loop";
 import { round2 } from "@/lib/utils";
+import { assertPartyOwned, cleanLineItems, loadOwnedProducts } from "./line-items";
 
 export interface PurchaseLineInput {
   productId?: string | null;
@@ -22,14 +23,19 @@ export interface CreatePurchaseInput {
 }
 
 export async function createPurchase(businessId: string, input: CreatePurchaseInput) {
-  const items = input.items.filter((i) => (i.description ?? "").trim() && i.quantity > 0);
-  if (items.length === 0) throw new Error("Add at least one line item.");
+  const items = cleanLineItems(input.items);
+  await assertPartyOwned(businessId, input.partyId);
+  // Rejects any productId that does not belong to the business before it can add
+  // stock to another tenant's inventory.
+  await loadOwnedProducts(businessId, items);
 
   const [biz] = await db.select().from(s.businesses).where(eq(s.businesses.id, businessId));
   const subtotal = round2(items.reduce((a, i) => a + i.quantity * i.unitPrice, 0));
   const tax = round2(subtotal * (biz.taxRate / 100));
   const total = round2(subtotal + tax);
-  const amountPaid = round2(Math.max(0, Math.min(input.amountPaid ?? 0, total)));
+  const rawPaid = input.amountPaid ?? 0;
+  if (!Number.isFinite(rawPaid)) throw new Error("Amount paid must be a valid number.");
+  const amountPaid = round2(Math.max(0, Math.min(rawPaid, total)));
   const paymentStatus = paymentStatusFor(amountPaid, total);
 
   const [{ value }] = await db

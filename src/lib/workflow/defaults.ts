@@ -30,7 +30,7 @@ export function defaultRules(businessId: string): RuleInsert[] {
       conditionOp: "gt",
       conditionValue: "10000",
       actionType: "flag_expense",
-      actionConfig: { label: "High-value expense — needs review" },
+      actionConfig: { label: "High-value expense, needs review" },
     },
     {
       businessId,

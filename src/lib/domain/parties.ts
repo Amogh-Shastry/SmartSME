@@ -14,6 +14,8 @@ export interface PartyInput {
 
 export async function createParty(businessId: string, input: PartyInput) {
   if (!input.name.trim()) throw new Error("Name is required.");
+  const openingBalance = Number(input.openingBalance ?? 0);
+  if (!Number.isFinite(openingBalance)) throw new Error("Opening balance must be a valid number.");
   const [party] = await db
     .insert(s.parties)
     .values({
@@ -24,13 +26,14 @@ export async function createParty(businessId: string, input: PartyInput) {
       email: input.email || null,
       gstNumber: input.gstNumber || null,
       address: input.address || null,
-      balance: input.openingBalance ?? 0,
+      balance: openingBalance,
     })
     .returning();
   return party;
 }
 
 export async function updateParty(businessId: string, partyId: string, input: PartyInput) {
+  if (!input.name.trim()) throw new Error("Name is required.");
   await db
     .update(s.parties)
     .set({

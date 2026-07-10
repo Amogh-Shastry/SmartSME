@@ -16,7 +16,9 @@ export async function createExpenseAction(formData: FormData): Promise<ActionRes
     const description = String(formData.get("description") ?? "");
     const amount = Number(formData.get("amount") ?? 0);
     const dateStr = String(formData.get("date") ?? "");
-    const date = dateStr ? new Date(dateStr) : undefined;
+    const parsed = dateStr ? new Date(dateStr) : undefined;
+    // An unparseable date string falls back to "today" rather than rejecting the expense.
+    const date = parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
     await createExpense(business.id, { category, description, amount, date, source: "form" });
     revalidatePath("/expenses");
     revalidatePath("/dashboard");

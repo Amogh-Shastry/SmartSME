@@ -5,6 +5,7 @@ import { publish } from "@/lib/events/publish";
 import { paymentStatusFor } from "@/lib/workflow/engine";
 import { drainQueue } from "@/worker/loop";
 import { round2 } from "@/lib/utils";
+import { assertPartyOwned, cleanLineItems, loadOwnedProducts } from "./line-items";
 
 export interface SaleLineInput {
   productId?: string | null;
@@ -27,14 +28,40 @@ export interface CreateSaleInput {
  * and the customer's balance.
  */
 export async function createSale(businessId: string, input: CreateSaleInput) {
-  const items = input.items.filter((i) => (i.description ?? "").trim() && i.quantity > 0);
-  if (items.length === 0) throw new Error("Add at least one line item.");
+  const items = cleanLineItems(input.items);
+  await assertPartyOwned(businessId, input.partyId);
+
+  // Block overselling: a sale can never take a tracked product below zero. We
+  // validate stock up front so the invoice is never created for stock we don't
+  // have, rather than letting the worker drive inventory negative. This also
+  // rejects any productId that does not belong to the business.
+  const products = await loadOwnedProducts(businessId, items);
+  const wanted = new Map<string, number>();
+  for (const it of items) {
+    if (it.productId) wanted.set(it.productId, (wanted.get(it.productId) ?? 0) + it.quantity);
+  }
+  const shortfalls: string[] = [];
+  for (const [id, need] of wanted) {
+    const p = products.get(id)!;
+    if (need > p.stock) {
+      shortfalls.push(`${p.name} (in stock: ${p.stock} ${p.unit}, requested: ${need})`);
+    }
+  }
+  if (shortfalls.length > 0) {
+    const lead =
+      shortfalls.length === 1
+        ? "Not enough stock to complete this sale:"
+        : "Not enough stock for these items:";
+    throw new Error(`${lead} ${shortfalls.join("; ")}. Reduce the quantity or restock first.`);
+  }
 
   const [biz] = await db.select().from(s.businesses).where(eq(s.businesses.id, businessId));
   const subtotal = round2(items.reduce((a, i) => a + i.quantity * i.unitPrice, 0));
   const tax = round2(subtotal * (biz.taxRate / 100));
   const total = round2(subtotal + tax);
-  const amountPaid = round2(Math.max(0, Math.min(input.amountPaid ?? 0, total)));
+  const rawPaid = input.amountPaid ?? 0;
+  if (!Number.isFinite(rawPaid)) throw new Error("Amount paid must be a valid number.");
+  const amountPaid = round2(Math.max(0, Math.min(rawPaid, total)));
   const paymentStatus = paymentStatusFor(amountPaid, total);
 
   const [{ value }] = await db

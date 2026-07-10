@@ -13,7 +13,7 @@ import { startWorker } from "./loop";
 async function main() {
   if (usingPglite) {
     console.warn(
-      "⚠️  No DATABASE_URL set — using embedded PGlite. The event worker already " +
+      "⚠️  No DATABASE_URL set, using embedded PGlite. The event worker already " +
         "runs inside `npm run dev`. A separate worker process cannot share the " +
         "embedded database. Set DATABASE_URL to run the worker standalone.",
     );

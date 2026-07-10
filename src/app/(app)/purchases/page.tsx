@@ -91,12 +91,12 @@ export default async function PurchasesPage() {
                       <div className="font-medium">{purchase.referenceNumber}</div>
                       <div className="text-xs text-muted-foreground">{formatDate(purchase.createdAt)}</div>
                     </TD>
-                    <TD>{partyName ?? <span className="text-muted-foreground">—</span>}</TD>
+                    <TD>{partyName ?? <span className="text-muted-foreground">-</span>}</TD>
                     <TD>
                       <SourceBadge source={purchase.source} />
                     </TD>
                     <TD className="text-right tabular-nums">{money(purchase.total, cur)}</TD>
-                    <TD className="text-right tabular-nums">{cancelled ? "—" : money(due, cur)}</TD>
+                    <TD className="text-right tabular-nums">{cancelled ? "-" : money(due, cur)}</TD>
                     <TD>
                       {cancelled ? <Badge tone="outline">Cancelled</Badge> : <PaymentBadge status={purchase.paymentStatus} />}
                     </TD>

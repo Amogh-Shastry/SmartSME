@@ -100,7 +100,7 @@ export default async function SalesPage() {
                     </TD>
                     <TD className="text-right tabular-nums">{money(sale.total, cur)}</TD>
                     <TD className="text-right tabular-nums">
-                      {cancelled ? "—" : money(due, cur)}
+                      {cancelled ? "-" : money(due, cur)}
                     </TD>
                     <TD>
                       {cancelled ? <Badge tone="outline">Cancelled</Badge> : <PaymentBadge status={sale.paymentStatus} />}

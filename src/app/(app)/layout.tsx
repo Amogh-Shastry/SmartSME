@@ -4,7 +4,7 @@ import { notifications } from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { AppShell } from "@/components/app-shell/app-shell";
 
-// Every authenticated route reads cookies + the database — always dynamic.
+// Every authenticated route reads cookies + the database, always dynamic.
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

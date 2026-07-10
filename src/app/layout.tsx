@@ -3,7 +3,7 @@ import { themeInitScript } from "@/components/theme-toggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SmartSME — AI business management",
+  title: "SmartSME: AI business management",
   description:
     "AI-powered, event-driven business management for SMEs. Sales, inventory, expenses, and a smart input engine.",
 };
