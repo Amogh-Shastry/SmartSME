@@ -174,3 +174,16 @@
   outline: none;
   box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
 }
+
+/* ── Bill row highlight ─────────────────────────────────────────────── */
+/* Triggered when a table row is navigated to via #anchor (e.g. from    */
+/* the Active Bills card). Flashes amber then fades to transparent.     */
+@keyframes highlight-row {
+  0%   { background-color: color-mix(in oklab, var(--warning) 22%, transparent); }
+  100% { background-color: transparent; }
+}
+
+tr:target {
+  animation: highlight-row 2s ease-out forwards;
+  scroll-margin-top: 5rem; /* clears the sticky top header */
+}

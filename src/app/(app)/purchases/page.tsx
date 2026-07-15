@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as sc from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
-import { PageHeader, StatCard, EmptyState } from "@/components/ui/misc";
+import { PageHeader, EmptyState } from "@/components/ui/misc";
 import { Card } from "@/components/ui/card";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { PaymentBadge, SourceBadge } from "@/components/status";
@@ -12,6 +12,9 @@ import { money, formatDate, round2 } from "@/lib/utils";
 import { RecordPaymentButton } from "@/components/record-payment-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { NewPurchaseDialog } from "./new-purchase-dialog";
+import { type VendorPayable } from "./payables-dropdown";
+import { PayableStatCard } from "./payable-stat-card";
+import { ActiveBillsCard, type UnpaidBill } from "./active-bills-card";
 import { recordPurchasePaymentAction, cancelPurchaseAction } from "./actions";
 
 export default async function PurchasesPage() {
@@ -47,6 +50,36 @@ export default async function PurchasesPage() {
   const totalPurchases = round2(active.reduce((a, r) => a + r.purchase.total, 0));
   const payable = round2(active.reduce((a, r) => a + (r.purchase.total - r.purchase.amountPaid), 0));
 
+  // Build vendor payables grouped by supplier (for Payables dropdown)
+  const vendorMap = new Map<string, VendorPayable>();
+  for (const { purchase, partyName } of active) {
+    const due = round2(purchase.total - purchase.amountPaid);
+    if (due <= 0) continue;
+    const key = purchase.partyId ?? "__none__";
+    if (!vendorMap.has(key)) {
+      vendorMap.set(key, {
+        partyId: purchase.partyId ?? null,
+        partyName: partyName ?? "Unknown Vendor",
+        purchases: [],
+        totalDue: 0,
+      });
+    }
+    const vendor = vendorMap.get(key)!;
+    vendor.purchases.push({ id: purchase.id, ref: purchase.referenceNumber, due });
+    vendor.totalDue = round2(vendor.totalDue + due);
+  }
+  const vendorPayables = Array.from(vendorMap.values()).sort((a, b) => b.totalDue - a.totalDue);
+
+  // Unpaid bills list for the Active Bills card (ordered newest-first, matching the main table)
+  const unpaidBills: UnpaidBill[] = active
+    .filter((r) => round2(r.purchase.total - r.purchase.amountPaid) > 0)
+    .map((r) => ({
+      id: r.purchase.id,
+      ref: r.purchase.referenceNumber,
+      partyName: r.partyName ?? "Unknown Vendor",
+      due: round2(r.purchase.total - r.purchase.amountPaid),
+    }));
+
   return (
     <div className="space-y-6">
       <PageHeader title="Purchases" description="Supplier bills and purchase orders.">
@@ -54,9 +87,16 @@ export default async function PurchasesPage() {
       </PageHeader>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total purchases" value={money(totalPurchases, cur)} icon={<Icon name="purchases" />} tone="primary" />
-        <StatCard label="Payable" value={money(payable, cur)} icon={<Icon name="wallet" />} tone="warning" />
-        <StatCard label="Bills" value={active.length} icon={<Icon name="reports" />} tone="info" />
+        {/* Total purchases — bigger centred number */}
+        <Card className="flex h-56 flex-col items-center justify-center gap-3 p-5 text-center">
+          <p className="text-sm text-muted-foreground">Total purchases</p>
+          <p className="text-4xl font-bold tracking-tight">{money(totalPurchases, cur)}</p>
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+            <Icon name="purchases" size={20} />
+          </span>
+        </Card>
+        <PayableStatCard payable={payable} vendors={vendorPayables} currency={cur} />
+        <ActiveBillsCard count={unpaidBills.length} bills={unpaidBills} currency={cur} />
       </div>
 
       <Card>
@@ -86,7 +126,7 @@ export default async function PurchasesPage() {
                 const due = round2(purchase.total - purchase.amountPaid);
                 const cancelled = purchase.status === "cancelled";
                 return (
-                  <TR key={purchase.id}>
+                  <TR key={purchase.id} id={`purchase-${purchase.id}`}>
                     <TD>
                       <div className="font-medium">{purchase.referenceNumber}</div>
                       <div className="text-xs text-muted-foreground">{formatDate(purchase.createdAt)}</div>
