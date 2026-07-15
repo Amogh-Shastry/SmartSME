@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import * as sc from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { createPurchase, cancelPurchase, type PurchaseLineInput } from "@/lib/domain/purchases";
 import { recordPayment } from "@/lib/domain/payments";
@@ -8,6 +11,50 @@ import { errMsg } from "@/lib/utils";
 
 export interface ActionResult {
   error?: string;
+}
+
+export interface PurchaseDetail {
+  purchase: sc.Purchase;
+  party: { name: string; phone: string | null; gstNumber: string | null } | null;
+  items: Array<{ id: string; description: string; quantity: number; unitPrice: number; lineTotal: number }>;
+}
+
+/** Loads one purchase with its supplier and line items, for the row-click detail modal. */
+export async function loadPurchaseDetailAction(
+  purchaseId: string,
+): Promise<{ detail?: PurchaseDetail; error?: string }> {
+  const { business } = await requireUser();
+  try {
+    const [purchase] = await db
+      .select()
+      .from(sc.purchases)
+      .where(and(eq(sc.purchases.id, purchaseId), eq(sc.purchases.businessId, business.id)));
+    if (!purchase) return { error: "Purchase not found." };
+
+    const party = purchase.partyId
+      ? (await db.select().from(sc.parties).where(eq(sc.parties.id, purchase.partyId)))[0]
+      : undefined;
+    const items = await db
+      .select()
+      .from(sc.purchaseItems)
+      .where(eq(sc.purchaseItems.purchaseId, purchase.id));
+
+    return {
+      detail: {
+        purchase,
+        party: party ? { name: party.name, phone: party.phone, gstNumber: party.gstNumber } : null,
+        items: items.map((it) => ({
+          id: it.id,
+          description: it.description,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          lineTotal: it.lineTotal,
+        })),
+      },
+    };
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
 }
 
 export async function createPurchaseAction(formData: FormData): Promise<ActionResult> {

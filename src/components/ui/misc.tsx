@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Card } from "./card";
 
@@ -28,12 +29,15 @@ export function StatCard({
   sub,
   icon,
   tone = "primary",
+  href,
 }: {
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   icon?: React.ReactNode;
   tone?: "primary" | "success" | "warning" | "destructive" | "info";
+  /** When set, the whole card becomes a link to this page. */
+  href?: string;
 }) {
   const toneBg: Record<string, string> = {
     primary: "bg-accent text-accent-foreground",
@@ -42,8 +46,14 @@ export function StatCard({
     destructive: "bg-destructive/15 text-destructive",
     info: "bg-info/15 text-info",
   };
-  return (
-    <Card className="p-5">
+  const card = (
+    <Card
+      className={cn(
+        "p-5",
+        href &&
+          "h-full transition-[box-shadow,border-color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:border-foreground/20 group-hover:shadow-md",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
@@ -62,6 +72,13 @@ export function StatCard({
         )}
       </div>
     </Card>
+  );
+
+  if (!href) return card;
+  return (
+    <Link href={href} className="group block rounded-xl focus-visible:focus-ring">
+      {card}
+    </Link>
   );
 }
 

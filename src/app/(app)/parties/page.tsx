@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import * as sc from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeader, StatCard, EmptyState } from "@/components/ui/misc";
 import { Card } from "@/components/ui/card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
 import { cn, money, round2 } from "@/lib/utils";
 import { ConfirmButton } from "@/components/confirm-button";
+import { buttonVariants } from "@/components/ui/button";
 import { PartyDialog } from "./party-dialogs";
-import { deletePartyAction } from "./actions";
+import { PartiesTable, type PartyRow, type OutstandingDoc } from "./parties-table";
+import { settleAllPayablesAction, settleAllReceivablesAction } from "./actions";
 
 export default async function PartiesPage({
   searchParams,
@@ -29,20 +29,74 @@ export default async function PartiesPage({
     .where(eq(sc.parties.businessId, business.id))
     .orderBy(sc.parties.name);
 
-  const parties = filter === "all" ? all : all.filter((p) => p.type === filter);
+  // Outstanding customer invoices and supplier bills, so each party row can be
+  // expanded to show exactly what makes up its balance and paid off in bulk.
+  const openSales = await db
+    .select({
+      id: sc.sales.id,
+      partyId: sc.sales.partyId,
+      ref: sc.sales.invoiceNumber,
+      date: sc.sales.createdAt,
+      total: sc.sales.total,
+      amountPaid: sc.sales.amountPaid,
+    })
+    .from(sc.sales)
+    .where(and(eq(sc.sales.businessId, business.id), ne(sc.sales.status, "cancelled")))
+    .orderBy(desc(sc.sales.createdAt));
+
+  const openPurchases = await db
+    .select({
+      id: sc.purchases.id,
+      partyId: sc.purchases.partyId,
+      ref: sc.purchases.referenceNumber,
+      date: sc.purchases.createdAt,
+      total: sc.purchases.total,
+      amountPaid: sc.purchases.amountPaid,
+    })
+    .from(sc.purchases)
+    .where(and(eq(sc.purchases.businessId, business.id), ne(sc.purchases.status, "cancelled")))
+    .orderBy(desc(sc.purchases.createdAt));
+
+  const outstandingByParty = new Map<string, OutstandingDoc[]>();
+  const pushDoc = (r: { id: string; partyId: string | null; ref: string; date: Date; total: number; amountPaid: number }) => {
+    const due = round2(r.total - r.amountPaid);
+    if (!r.partyId || due <= 0.001) return;
+    const list = outstandingByParty.get(r.partyId) ?? [];
+    list.push({ id: r.id, ref: r.ref, date: r.date, total: r.total, due });
+    outstandingByParty.set(r.partyId, list);
+  };
+  openSales.forEach(pushDoc);
+  openPurchases.forEach(pushDoc);
+
+  const rows: PartyRow[] = all.map((p) => ({
+    id: p.id,
+    type: p.type,
+    name: p.name,
+    phone: p.phone,
+    email: p.email,
+    gstNumber: p.gstNumber,
+    address: p.address,
+    balance: p.balance,
+    outstanding: outstandingByParty.get(p.id) ?? [],
+  }));
+
+  const visible = filter === "all" ? rows : rows.filter((p) => p.type === filter);
 
   const receivable = round2(
-    all.filter((p) => p.type === "customer" && p.balance > 0).reduce((a, p) => a + p.balance, 0),
+    rows.filter((p) => p.type === "customer" && p.balance > 0).reduce((a, p) => a + p.balance, 0),
   );
   const payable = round2(
-    all.filter((p) => p.type === "supplier" && p.balance > 0).reduce((a, p) => a + p.balance, 0),
+    rows.filter((p) => p.type === "supplier" && p.balance > 0).reduce((a, p) => a + p.balance, 0),
   );
 
   const tabs = [
-    { key: "all", label: `All (${all.length})`, href: "/parties" },
-    { key: "customer", label: `Customers (${all.filter((p) => p.type === "customer").length})`, href: "/parties?type=customer" },
-    { key: "supplier", label: `Suppliers (${all.filter((p) => p.type === "supplier").length})`, href: "/parties?type=supplier" },
+    { key: "all", label: `All (${rows.length})`, href: "/parties" },
+    { key: "customer", label: `Customers (${rows.filter((p) => p.type === "customer").length})`, href: "/parties?type=customer" },
+    { key: "supplier", label: `Suppliers (${rows.filter((p) => p.type === "supplier").length})`, href: "/parties?type=supplier" },
   ];
+
+  const showReceivablesAction = (filter === "all" || filter === "customer") && receivable > 0;
+  const showPayablesAction = (filter === "all" || filter === "supplier") && payable > 0;
 
   return (
     <div className="space-y-6">
@@ -55,25 +109,54 @@ export default async function PartiesPage({
         <StatCard label="Total payable" value={money(payable, cur)} sub="Owed by you to suppliers" icon={<Icon name="trendingDown" />} tone="warning" />
       </div>
 
-      <div className="flex gap-1 rounded-lg border border-border bg-card p-1 text-sm">
-        {tabs.map((t) => (
-          <Link
-            key={t.key}
-            href={t.href}
-            className={cn(
-              "rounded-md px-3 py-1.5 font-medium transition-colors",
-              filter === t.key
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground",
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1 rounded-lg border border-border bg-card p-1 text-sm">
+          {tabs.map((t) => (
+            <Link
+              key={t.key}
+              href={t.href}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                filter === t.key
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+
+        {(showReceivablesAction || showPayablesAction) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {showReceivablesAction && (
+              <ConfirmButton
+                action={settleAllReceivablesAction}
+                title="Mark all receivables as paid?"
+                message={`Every outstanding customer invoice (${money(receivable, cur)}) will be marked fully paid and balances cleared.`}
+                confirmLabel="Mark all as paid"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <Icon name="check" size={15} /> Receivables paid
+              </ConfirmButton>
             )}
-          >
-            {t.label}
-          </Link>
-        ))}
+            {showPayablesAction && (
+              <ConfirmButton
+                action={settleAllPayablesAction}
+                title="Mark all payables as paid?"
+                message={`Every outstanding supplier bill (${money(payable, cur)}) will be marked fully paid and balances cleared.`}
+                confirmLabel="Mark all as paid"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <Icon name="check" size={15} /> Payables paid
+              </ConfirmButton>
+            )}
+          </div>
+        )}
       </div>
 
       <Card>
-        {parties.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="p-6">
             <EmptyState
               icon={<Icon name="parties" />}
@@ -82,64 +165,7 @@ export default async function PartiesPage({
             />
           </div>
         ) : (
-          <Table>
-            <THead>
-              <TR className="hover:bg-transparent">
-                <TH>Name</TH>
-                <TH>Type</TH>
-                <TH>Contact</TH>
-                <TH>GSTIN</TH>
-                <TH className="text-right">Balance</TH>
-                <TH className="text-right">Actions</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {parties.map((p) => (
-                <TR key={p.id}>
-                  <TD>
-                    <div className="font-medium">{p.name}</div>
-                    {p.address && <div className="max-w-xs truncate text-xs text-muted-foreground">{p.address}</div>}
-                  </TD>
-                  <TD>
-                    <Badge tone={p.type === "customer" ? "info" : "primary"}>
-                      {p.type === "customer" ? "Customer" : "Supplier"}
-                    </Badge>
-                  </TD>
-                  <TD className="text-muted-foreground">{p.phone ?? p.email ?? "-"}</TD>
-                  <TD className="text-muted-foreground">{p.gstNumber ?? "-"}</TD>
-                  <TD className="text-right">
-                    <span
-                      className={cn(
-                        "tabular-nums font-medium",
-                        p.balance > 0
-                          ? p.type === "customer"
-                            ? "text-success"
-                            : "text-warning"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {money(p.balance, cur)}
-                    </span>
-                  </TD>
-                  <TD>
-                    <div className="flex items-center justify-end gap-1">
-                      <PartyDialog party={p} />
-                      <ConfirmButton
-                        action={deletePartyAction.bind(null, p.id)}
-                        title="Delete party?"
-                        message={`"${p.name}" will be removed. Their past transactions are kept but unlinked.`}
-                        confirmLabel="Delete"
-                        danger
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive"
-                      >
-                        <Icon name="trash" size={16} />
-                      </ConfirmButton>
-                    </div>
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
+          <PartiesTable rows={visible} currency={cur} />
         )}
       </Card>
     </div>

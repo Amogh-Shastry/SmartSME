@@ -4,15 +4,10 @@ import * as sc from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeader, StatCard, EmptyState } from "@/components/ui/misc";
 import { Card } from "@/components/ui/card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { PaymentBadge, SourceBadge } from "@/components/status";
-import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
-import { money, formatDate, round2 } from "@/lib/utils";
-import { RecordPaymentButton } from "@/components/record-payment-button";
-import { ConfirmButton } from "@/components/confirm-button";
+import { money, round2 } from "@/lib/utils";
 import { NewPurchaseDialog } from "./new-purchase-dialog";
-import { recordPurchasePaymentAction, cancelPurchaseAction } from "./actions";
+import { PurchasesTable, type PurchaseListRow } from "./purchases-table";
 
 export default async function PurchasesPage() {
   const { business } = await requireUser();
@@ -47,6 +42,18 @@ export default async function PurchasesPage() {
   const totalPurchases = round2(active.reduce((a, r) => a + r.purchase.total, 0));
   const payable = round2(active.reduce((a, r) => a + (r.purchase.total - r.purchase.amountPaid), 0));
 
+  const tableRows: PurchaseListRow[] = rows.map(({ purchase, partyName }) => ({
+    id: purchase.id,
+    referenceNumber: purchase.referenceNumber,
+    createdAt: purchase.createdAt,
+    partyName: partyName ?? null,
+    source: purchase.source,
+    status: purchase.status,
+    total: purchase.total,
+    amountPaid: purchase.amountPaid,
+    paymentStatus: purchase.paymentStatus,
+  }));
+
   return (
     <div className="space-y-6">
       <PageHeader title="Purchases" description="Supplier bills and purchase orders.">
@@ -69,68 +76,7 @@ export default async function PurchasesPage() {
             />
           </div>
         ) : (
-          <Table>
-            <THead>
-              <TR className="hover:bg-transparent">
-                <TH>Reference</TH>
-                <TH>Supplier</TH>
-                <TH>Source</TH>
-                <TH className="text-right">Total</TH>
-                <TH className="text-right">Due</TH>
-                <TH>Status</TH>
-                <TH className="text-right">Actions</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {rows.map(({ purchase, partyName }) => {
-                const due = round2(purchase.total - purchase.amountPaid);
-                const cancelled = purchase.status === "cancelled";
-                return (
-                  <TR key={purchase.id}>
-                    <TD>
-                      <div className="font-medium">{purchase.referenceNumber}</div>
-                      <div className="text-xs text-muted-foreground">{formatDate(purchase.createdAt)}</div>
-                    </TD>
-                    <TD>{partyName ?? <span className="text-muted-foreground">-</span>}</TD>
-                    <TD>
-                      <SourceBadge source={purchase.source} />
-                    </TD>
-                    <TD className="text-right tabular-nums">{money(purchase.total, cur)}</TD>
-                    <TD className="text-right tabular-nums">{cancelled ? "-" : money(due, cur)}</TD>
-                    <TD>
-                      {cancelled ? <Badge tone="outline">Cancelled</Badge> : <PaymentBadge status={purchase.paymentStatus} />}
-                    </TD>
-                    <TD>
-                      <div className="flex items-center justify-end gap-2">
-                        {!cancelled && due > 0 && (
-                          <RecordPaymentButton
-                            action={recordPurchasePaymentAction}
-                            idName="purchaseId"
-                            idValue={purchase.id}
-                            due={due}
-                            currency={cur}
-                            label="Pay"
-                          />
-                        )}
-                        {!cancelled && (
-                          <ConfirmButton
-                            action={cancelPurchaseAction.bind(null, purchase.id)}
-                            title="Cancel purchase?"
-                            message={`This removes received stock and reverses the payable for ${purchase.referenceNumber}.`}
-                            confirmLabel="Cancel purchase"
-                            danger
-                            className="text-sm text-muted-foreground hover:text-destructive"
-                          >
-                            <Icon name="trash" size={16} />
-                          </ConfirmButton>
-                        )}
-                      </div>
-                    </TD>
-                  </TR>
-                );
-              })}
-            </TBody>
-          </Table>
+          <PurchasesTable rows={tableRows} currency={cur} />
         )}
       </Card>
     </div>

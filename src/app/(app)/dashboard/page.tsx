@@ -26,6 +26,14 @@ export default async function DashboardPage() {
     .orderBy(desc(sc.sales.createdAt))
     .limit(5);
 
+  const recentPurchases = await db
+    .select({ purchase: sc.purchases, partyName: sc.parties.name })
+    .from(sc.purchases)
+    .leftJoin(sc.parties, eq(sc.purchases.partyId, sc.parties.id))
+    .where(and(eq(sc.purchases.businessId, business.id), ne(sc.purchases.status, "cancelled")))
+    .orderBy(desc(sc.purchases.createdAt))
+    .limit(5);
+
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" description={`Here's how ${business.name} is doing.`}>
@@ -34,14 +42,14 @@ export default async function DashboardPage() {
         </Link>
       </PageHeader>
 
-      {/* KPIs */}
+      {/* KPIs — each links through to the matching page */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total sales" value={compactMoney(o.totals.sales, cur)} icon={<Icon name="sales" />} tone="primary" />
-        <StatCard label="Purchases" value={compactMoney(o.totals.purchases, cur)} icon={<Icon name="purchases" />} tone="info" />
-        <StatCard label="Expenses" value={compactMoney(o.totals.expenses, cur)} icon={<Icon name="expenses" />} tone="warning" />
-        <StatCard label="Inventory" value={compactMoney(o.totals.inventoryValue, cur)} icon={<Icon name="box" />} tone="info" />
-        <StatCard label="Receivable" value={compactMoney(o.totals.receivable, cur)} icon={<Icon name="trendingUp" />} tone="success" />
-        <StatCard label="Payable" value={compactMoney(o.totals.payable, cur)} icon={<Icon name="trendingDown" />} tone="destructive" />
+        <StatCard label="Total sales" value={compactMoney(o.totals.sales, cur)} icon={<Icon name="sales" />} tone="primary" href="/sales" />
+        <StatCard label="Purchases" value={compactMoney(o.totals.purchases, cur)} icon={<Icon name="purchases" />} tone="info" href="/purchases" />
+        <StatCard label="Expenses" value={compactMoney(o.totals.expenses, cur)} icon={<Icon name="expenses" />} tone="warning" href="/expenses" />
+        <StatCard label="Inventory" value={compactMoney(o.totals.inventoryValue, cur)} icon={<Icon name="box" />} tone="info" href="/products" />
+        <StatCard label="Receivable" value={compactMoney(o.totals.receivable, cur)} icon={<Icon name="trendingUp" />} tone="success" href="/parties?type=customer" />
+        <StatCard label="Payable" value={compactMoney(o.totals.payable, cur)} icon={<Icon name="trendingDown" />} tone="destructive" href="/parties?type=supplier" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -85,11 +93,11 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* Recent activity: sales and purchases side by side */}
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent sales */}
         <SectionCard
           title="Recent sales"
-          className="lg:col-span-2"
           action={
             <Link href="/sales" className="text-sm text-primary hover:underline">
               View all
@@ -125,6 +133,44 @@ export default async function DashboardPage() {
           )}
         </SectionCard>
 
+        {/* Recent purchases */}
+        <SectionCard
+          title="Recent purchases"
+          action={
+            <Link href="/purchases" className="text-sm text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {recentPurchases.length === 0 ? (
+            <div className="p-6">
+              <EmptyState icon={<Icon name="purchases" />} title="No purchases yet" description="Record a supplier bill from Smart Input or the Purchases page." />
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentPurchases.map(({ purchase, partyName }) => (
+                <li key={purchase.id} className="flex items-center gap-3 p-4">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/15 text-info">
+                    <Icon name="purchases" size={16} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">{purchase.referenceNumber}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {partyName ?? "Supplier"} · {formatDate(purchase.createdAt)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium tabular-nums">{money(purchase.total, cur)}</div>
+                    <PaymentBadge status={purchase.paymentStatus} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-6">
         {/* Alerts */}
         <SectionCard
           title="Needs attention"

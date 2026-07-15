@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { paymentStatusFor } from "@/lib/workflow/engine";
@@ -64,5 +64,145 @@ export async function recordPayment(
           .where(eq(s.parties.id, pur.partyId));
       }
     }
+  });
+}
+
+export interface SettleResult {
+  /** Number of invoices/bills that had an outstanding balance and were settled. */
+  count: number;
+  /** Total amount marked as paid across all settled documents. */
+  total: number;
+}
+
+/**
+ * Settles every outstanding invoice (customer) or bill (supplier) for a single
+ * party in one transaction: each open document is marked fully paid and the
+ * party's running balance is reduced by the total applied. Mirrors the
+ * per-document `recordPayment` math so balances stay consistent regardless of
+ * how the balance was originally accrued.
+ */
+export async function settleParty(businessId: string, partyId: string): Promise<SettleResult> {
+  return db.transaction(async (tx) => {
+    const [party] = await tx
+      .select()
+      .from(s.parties)
+      .where(and(eq(s.parties.id, partyId), eq(s.parties.businessId, businessId)));
+    if (!party) throw new Error("Party not found.");
+
+    let applied = 0;
+    let count = 0;
+
+    if (party.type === "supplier") {
+      const bills = await tx
+        .select()
+        .from(s.purchases)
+        .where(
+          and(
+            eq(s.purchases.businessId, businessId),
+            eq(s.purchases.partyId, partyId),
+            ne(s.purchases.status, "cancelled"),
+          ),
+        );
+      for (const bill of bills) {
+        const due = round2(bill.total - bill.amountPaid);
+        if (due <= 0) continue;
+        await tx
+          .update(s.purchases)
+          .set({ amountPaid: bill.total, paymentStatus: "paid" })
+          .where(eq(s.purchases.id, bill.id));
+        applied = round2(applied + due);
+        count += 1;
+      }
+    } else {
+      const invoices = await tx
+        .select()
+        .from(s.sales)
+        .where(
+          and(
+            eq(s.sales.businessId, businessId),
+            eq(s.sales.partyId, partyId),
+            ne(s.sales.status, "cancelled"),
+          ),
+        );
+      for (const inv of invoices) {
+        const due = round2(inv.total - inv.amountPaid);
+        if (due <= 0) continue;
+        await tx
+          .update(s.sales)
+          .set({ amountPaid: inv.total, paymentStatus: "paid" })
+          .where(eq(s.sales.id, inv.id));
+        applied = round2(applied + due);
+        count += 1;
+      }
+    }
+
+    if (applied > 0) {
+      await tx
+        .update(s.parties)
+        .set({ balance: sql`${s.parties.balance} - ${applied}` })
+        .where(eq(s.parties.id, partyId));
+    }
+
+    return { count, total: applied };
+  });
+}
+
+/**
+ * Marks every outstanding document of one kind as paid across the whole
+ * business — "mark all receivables/payables as paid". Walk-in documents with no
+ * linked party are still settled; parties that had open documents have their
+ * balances reduced by exactly what was applied to them.
+ */
+export async function settleAllOutstanding(
+  businessId: string,
+  kind: "receivable" | "payable",
+): Promise<SettleResult> {
+  return db.transaction(async (tx) => {
+    let applied = 0;
+    let count = 0;
+    const perParty = new Map<string, number>();
+
+    if (kind === "payable") {
+      const bills = await tx
+        .select()
+        .from(s.purchases)
+        .where(and(eq(s.purchases.businessId, businessId), ne(s.purchases.status, "cancelled")));
+      for (const bill of bills) {
+        const due = round2(bill.total - bill.amountPaid);
+        if (due <= 0) continue;
+        await tx
+          .update(s.purchases)
+          .set({ amountPaid: bill.total, paymentStatus: "paid" })
+          .where(eq(s.purchases.id, bill.id));
+        applied = round2(applied + due);
+        count += 1;
+        if (bill.partyId) perParty.set(bill.partyId, round2((perParty.get(bill.partyId) ?? 0) + due));
+      }
+    } else {
+      const invoices = await tx
+        .select()
+        .from(s.sales)
+        .where(and(eq(s.sales.businessId, businessId), ne(s.sales.status, "cancelled")));
+      for (const inv of invoices) {
+        const due = round2(inv.total - inv.amountPaid);
+        if (due <= 0) continue;
+        await tx
+          .update(s.sales)
+          .set({ amountPaid: inv.total, paymentStatus: "paid" })
+          .where(eq(s.sales.id, inv.id));
+        applied = round2(applied + due);
+        count += 1;
+        if (inv.partyId) perParty.set(inv.partyId, round2((perParty.get(inv.partyId) ?? 0) + due));
+      }
+    }
+
+    for (const [partyId, amount] of perParty) {
+      await tx
+        .update(s.parties)
+        .set({ balance: sql`${s.parties.balance} - ${amount}` })
+        .where(and(eq(s.parties.id, partyId), eq(s.parties.businessId, businessId)));
+    }
+
+    return { count, total: applied };
   });
 }

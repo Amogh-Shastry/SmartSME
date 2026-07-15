@@ -3,10 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/current-user";
 import { createParty, updateParty, deleteParty, type PartyInput } from "@/lib/domain/parties";
+import { settleParty, settleAllOutstanding } from "@/lib/domain/payments";
 import { errMsg } from "@/lib/utils";
 
 export interface ActionResult {
   error?: string;
+}
+
+function revalidateLedgers() {
+  revalidatePath("/parties");
+  revalidatePath("/sales");
+  revalidatePath("/purchases");
+  revalidatePath("/dashboard");
 }
 
 function read(formData: FormData): PartyInput {
@@ -48,6 +56,42 @@ export async function deletePartyAction(partyId: string): Promise<ActionResult> 
   try {
     await deleteParty(business.id, partyId);
     revalidatePath("/parties");
+    return {};
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
+}
+
+/** Settle every outstanding invoice/bill for one party (per-vendor bulk pay). */
+export async function settlePartyAction(partyId: string): Promise<ActionResult> {
+  const { business } = await requireUser();
+  try {
+    await settleParty(business.id, partyId);
+    revalidateLedgers();
+    return {};
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
+}
+
+/** Mark every outstanding supplier bill (payables) as paid. */
+export async function settleAllPayablesAction(): Promise<ActionResult> {
+  const { business } = await requireUser();
+  try {
+    await settleAllOutstanding(business.id, "payable");
+    revalidateLedgers();
+    return {};
+  } catch (e) {
+    return { error: errMsg(e) };
+  }
+}
+
+/** Mark every outstanding customer invoice (receivables) as paid. */
+export async function settleAllReceivablesAction(): Promise<ActionResult> {
+  const { business } = await requireUser();
+  try {
+    await settleAllOutstanding(business.id, "receivable");
+    revalidateLedgers();
     return {};
   } catch (e) {
     return { error: errMsg(e) };

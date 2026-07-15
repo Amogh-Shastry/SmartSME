@@ -1,19 +1,13 @@
-import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as sc from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
 import { PageHeader, StatCard, EmptyState } from "@/components/ui/misc";
 import { Card } from "@/components/ui/card";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { PaymentBadge, SourceBadge } from "@/components/status";
 import { Icon } from "@/components/icons";
-import { Badge } from "@/components/ui/badge";
-import { money, formatDate, round2 } from "@/lib/utils";
-import { RecordPaymentButton } from "@/components/record-payment-button";
-import { ConfirmButton } from "@/components/confirm-button";
+import { money, round2 } from "@/lib/utils";
 import { NewSaleDialog } from "./new-sale-dialog";
-import { recordSalePaymentAction, cancelSaleAction } from "./actions";
+import { SalesTable, type SaleListRow } from "./sales-table";
 
 export default async function SalesPage() {
   const { business } = await requireUser();
@@ -48,6 +42,18 @@ export default async function SalesPage() {
   const totalSales = round2(active.reduce((a, r) => a + r.sale.total, 0));
   const receivable = round2(active.reduce((a, r) => a + (r.sale.total - r.sale.amountPaid), 0));
 
+  const tableRows: SaleListRow[] = rows.map(({ sale, partyName }) => ({
+    id: sale.id,
+    invoiceNumber: sale.invoiceNumber,
+    createdAt: sale.createdAt,
+    partyName: partyName ?? null,
+    source: sale.source,
+    status: sale.status,
+    total: sale.total,
+    amountPaid: sale.amountPaid,
+    paymentStatus: sale.paymentStatus,
+  }));
+
   return (
     <div className="space-y-6">
       <PageHeader title="Sales" description="Invoices and customer orders.">
@@ -70,71 +76,7 @@ export default async function SalesPage() {
             />
           </div>
         ) : (
-          <Table>
-            <THead>
-              <TR className="hover:bg-transparent">
-                <TH>Invoice</TH>
-                <TH>Customer</TH>
-                <TH>Source</TH>
-                <TH className="text-right">Total</TH>
-                <TH className="text-right">Due</TH>
-                <TH>Status</TH>
-                <TH className="text-right">Actions</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {rows.map(({ sale, partyName }) => {
-                const due = round2(sale.total - sale.amountPaid);
-                const cancelled = sale.status === "cancelled";
-                return (
-                  <TR key={sale.id}>
-                    <TD>
-                      <Link href={`/sales/${sale.id}`} className="font-medium hover:text-primary">
-                        {sale.invoiceNumber}
-                      </Link>
-                      <div className="text-xs text-muted-foreground">{formatDate(sale.createdAt)}</div>
-                    </TD>
-                    <TD>{partyName ?? <span className="text-muted-foreground">Walk-in</span>}</TD>
-                    <TD>
-                      <SourceBadge source={sale.source} />
-                    </TD>
-                    <TD className="text-right tabular-nums">{money(sale.total, cur)}</TD>
-                    <TD className="text-right tabular-nums">
-                      {cancelled ? "-" : money(due, cur)}
-                    </TD>
-                    <TD>
-                      {cancelled ? <Badge tone="outline">Cancelled</Badge> : <PaymentBadge status={sale.paymentStatus} />}
-                    </TD>
-                    <TD>
-                      <div className="flex items-center justify-end gap-2">
-                        {!cancelled && due > 0 && (
-                          <RecordPaymentButton
-                            action={recordSalePaymentAction}
-                            idName="saleId"
-                            idValue={sale.id}
-                            due={due}
-                            currency={cur}
-                          />
-                        )}
-                        {!cancelled && (
-                          <ConfirmButton
-                            action={cancelSaleAction.bind(null, sale.id)}
-                            title="Cancel sale?"
-                            message={`This will reverse the inventory and receivable for ${sale.invoiceNumber}.`}
-                            confirmLabel="Cancel sale"
-                            danger
-                            className="text-sm text-muted-foreground hover:text-destructive"
-                          >
-                            <Icon name="trash" size={16} />
-                          </ConfirmButton>
-                        )}
-                      </div>
-                    </TD>
-                  </TR>
-                );
-              })}
-            </TBody>
-          </Table>
+          <SalesTable rows={tableRows} currency={cur} />
         )}
       </Card>
     </div>
