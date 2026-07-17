@@ -26,6 +26,8 @@ const EXAMPLES = [
 
 // Draft text survives navigating away and back (until it's actually parsed).
 const TEXT_KEY = "smartsme:smart-input:text";
+// The parsed, in-progress draft survives navigation too (until it's published).
+const DRAFT_KEY = "smartsme:smart-input:draft";
 
 export function InputConsole({
   parties,
@@ -51,9 +53,21 @@ export function InputConsole({
   const [pending, start] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Restore anything typed before the user navigated away.
+  const draftSource = (): "nlp" | "ocr" => (mode === "image" ? "ocr" : "nlp");
+
+  // Restore an in-progress draft first (parsed items), else any typed-but-unparsed
+  // text — so leaving Smart Input and coming back never loses work.
   useEffect(() => {
     try {
+      const savedDraft = sessionStorage.getItem(DRAFT_KEY);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft) as { draft: Draft; source: "nlp" | "ocr" };
+        if (parsed?.draft) {
+          if (parsed.source === "ocr") setMode("image");
+          setDraft(parsed.draft);
+          return;
+        }
+      }
       const saved = sessionStorage.getItem(TEXT_KEY);
       if (saved) setText(saved);
     } catch {
@@ -78,12 +92,29 @@ export function InputConsole({
     }
   }
 
+  function saveDraft(d: Draft) {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ draft: d, source: draftSource() }));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function clearSavedDraft() {
+    try {
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function reset() {
     setDraft(null);
     setError(null);
     setPreview(null);
     setText("");
     clearSavedText();
+    clearSavedDraft();
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -95,9 +126,10 @@ export function InputConsole({
         const res = await parseTextAction(text);
         if (res.error) setError(res.error);
         else {
-          // It's been parsed — the draft now holds the content, so the raw text
-          // no longer needs to persist across navigation.
+          // Parsed: the draft now holds the content, so the raw text no longer
+          // needs to persist — but the draft itself does, until it's published.
           clearSavedText();
+          saveDraft(res.draft!);
           setDraft(res.draft!);
         }
       } catch {
@@ -119,7 +151,10 @@ export function InputConsole({
         try {
           const res = await parseImageAction(dataUrl);
           if (res.error) setError(res.error);
-          else setDraft(res.draft!);
+          else {
+            saveDraft(res.draft!);
+            setDraft(res.draft!);
+          }
         } catch {
           setError("Could not process that image. It may be too large. Try a smaller photo.");
         }
@@ -138,7 +173,14 @@ export function InputConsole({
         currency={currency}
         taxRate={taxRate}
         source={mode === "image" ? "ocr" : "nlp"}
-        onBack={() => setDraft(null)}
+        onBack={() => {
+          // Going back to edit the command discards the parsed draft, but keeps
+          // the original text so it can be tweaked and re-parsed.
+          clearSavedDraft();
+          if (mode === "text") updateText(draft.note);
+          setDraft(null);
+        }}
+        onPersist={saveDraft}
         onPublished={(msg) => {
           setSuccess(msg);
           reset();
@@ -256,6 +298,7 @@ function DraftConfirm({
   source,
   onBack,
   onPublished,
+  onPersist,
 }: {
   draft: Draft;
   parties: Party[];
@@ -265,15 +308,45 @@ function DraftConfirm({
   source: "nlp" | "ocr";
   onBack: () => void;
   onPublished: (msg: string) => void;
+  onPersist: (draft: Draft) => void;
 }) {
+  const partyTypeFor = (t: Draft["suggestedType"]) => (t === "purchase" ? "supplier" : "customer");
   const [type, setType] = useState<Draft["suggestedType"]>(draft.suggestedType);
+  const [discountType, setDiscountType] = useState<Draft["discountType"]>(draft.discountType);
+  const [discountValue, setDiscountValue] = useState<number>(draft.discountValue);
+  const [partyId, setPartyId] = useState<string>(
+    draft.partyId && parties.some((p) => p.id === draft.partyId && p.type === partyTypeFor(draft.suggestedType))
+      ? draft.partyId
+      : "",
+  );
+  const [items, setItems] = useState<Draft["items"]>(draft.items);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  const partyList = parties.filter((p) => p.type === (type === "purchase" ? "supplier" : "customer"));
+  const partyList = parties.filter((p) => p.type === partyTypeFor(type));
   const priceField = type === "purchase" ? "purchasePrice" : "sellingPrice";
   const matchedInList = partyList.some((p) => p.id === draft.partyId);
+
+  function changeType(next: Draft["suggestedType"]) {
+    setType(next);
+    // Drop a selected party that no longer fits the new direction.
+    setPartyId((cur) => (parties.some((p) => p.id === cur && p.type === partyTypeFor(next)) ? cur : ""));
+  }
+
+  // Keep the persisted working draft in sync so it survives navigating away.
+  useEffect(() => {
+    onPersist({
+      ...draft,
+      suggestedType: type,
+      partyId: partyId || null,
+      items,
+      discountType: type === "sale" ? discountType : "none",
+      discountValue: type === "sale" ? discountValue : 0,
+    });
+    // onPersist/draft are stable; only re-persist when the working values change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, partyId, items, discountType, discountValue]);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -319,7 +392,7 @@ function DraftConfirm({
         <input type="hidden" name="type" value={type} />
 
         <Field label="Record as">
-          <Select value={type} onChange={(e) => setType(e.target.value as Draft["suggestedType"])}>
+          <Select value={type} onChange={(e) => changeType(e.target.value as Draft["suggestedType"])}>
             <option value="sale">Sale</option>
             <option value="purchase">Purchase</option>
             <option value="expense">Expense</option>
@@ -343,7 +416,7 @@ function DraftConfirm({
         ) : (
           <>
             <Field label={type === "purchase" ? "Supplier" : "Customer"}>
-              <Select name="partyId" defaultValue={matchedInList ? draft.partyId! : ""}>
+              <Select name="partyId" value={partyId} onChange={(e) => setPartyId(e.target.value)}>
                 <option value="">{type === "purchase" ? "None" : "Walk-in / none"}</option>
                 {partyList.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -359,19 +432,44 @@ function DraftConfirm({
               taxRate={taxRate}
               currency={currency}
               initialRows={draft.items}
+              discountType={type === "sale" ? discountType : "none"}
+              discountValue={type === "sale" ? discountValue : 0}
+              onRowsChange={(rows) =>
+                setItems(
+                  rows.map((r) => ({
+                    productId: r.productId ?? null,
+                    description: r.description,
+                    quantity: r.quantity,
+                    unitPrice: r.unitPrice,
+                  })),
+                )
+              }
             />
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Discount type">
-                <Select name="discountType" defaultValue="none">
-                  <option value="none">No discount</option>
-                  <option value="amount">Amount</option>
-                  <option value="percentage">Percentage</option>
-                </Select>
-              </Field>
-              <Field label="Discount value" hint="Enter amount or % depending on the selected type.">
-                <Input name="discountValue" type="number" min={0} step="0.01" defaultValue={0} />
-              </Field>
-            </div>
+            {type === "sale" && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Discount type">
+                  <Select
+                    name="discountType"
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as Draft["discountType"])}
+                  >
+                    <option value="none">No discount</option>
+                    <option value="amount">Amount</option>
+                    <option value="percentage">Percentage</option>
+                  </Select>
+                </Field>
+                <Field label="Discount value" hint="Enter amount or % depending on the selected type.">
+                  <Input
+                    name="discountValue"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={discountValue || ""}
+                    onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
+                  />
+                </Field>
+              </div>
+            )}
             <Field label="Amount paid" hint="Leave 0 to keep it as credit.">
               <Input name="amountPaid" type="number" min={0} step="0.01" defaultValue={0} />
             </Field>

@@ -129,6 +129,12 @@ const ICONS: Record<string, React.ReactNode> = {
   ),
   chevronRight: <path d="m9 18 6-6-6-6" />,
   chevronDown: <path d="m6 9 6 6 6-6" />,
+  panelLeft: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+    </>
+  ),
   trendingUp: (
     <>
       <path d="M22 7 13.5 15.5 8.5 10.5 2 17" />

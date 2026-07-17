@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn, initials } from "@/lib/utils";
 import { Icon, type IconName } from "@/components/icons";
-import { BrandLockup } from "@/components/brand";
+import { BrandLockup, BrandMark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOutAction } from "@/lib/auth/actions";
+
+const COLLAPSE_KEY = "smartsme:sidebar-collapsed";
+const WIDTH_KEY = "smartsme:sidebar-width";
+const MIN_WIDTH = 190;
+const MAX_WIDTH = 460;
+const DEFAULT_WIDTH = 256;
+const RAIL_WIDTH = 64;
 
 type NavItem = { href: string; label: string; icon: IconName };
 type NavGroup = { label?: string; items: NavItem[] };
@@ -54,68 +61,144 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [dragging, setDragging] = useState(false);
+
+  // Restore the collapsed/width preferences (desktop only) across reloads.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(COLLAPSE_KEY) === "1") setCollapsed(true);
+      const w = Number(localStorage.getItem(WIDTH_KEY));
+      if (w >= MIN_WIDTH && w <= MAX_WIDTH) setWidth(w);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function persist(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function setCollapsedPersisted(next: boolean) {
+    setCollapsed(next);
+    persist(COLLAPSE_KEY, next ? "1" : "0");
+  }
+
+  // The edge handle is both a button and a drag handle: a plain click toggles the
+  // icon-only rail; a horizontal drag sets an exact width the page flexes around.
+  function onHandleMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    let moved = false;
+    let lastWidth = width;
+    setDragging(true);
+
+    const onMove = (ev: MouseEvent) => {
+      if (!moved && Math.abs(ev.clientX - startX) > 4) moved = true;
+      if (!moved) return;
+      lastWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, ev.clientX));
+      setCollapsed(false);
+      setWidth(lastWidth);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      setDragging(false);
+      if (!moved) {
+        setCollapsedPersisted(!collapsed); // treat as a click
+      } else {
+        persist(COLLAPSE_KEY, "0");
+        persist(WIDTH_KEY, String(lastWidth));
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
-  const nav = (
-    <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4">
-      {NAV.map((group, gi) => (
-        <div key={gi} className="flex flex-col gap-1">
-          {group.label && (
-            <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              {group.label}
-            </div>
-          )}
-          {group.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive(item.href)
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon name={item.icon} size={18} />
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      ))}
-    </nav>
+  const navLink = (href: string, label: string, icon: IconName, mini: boolean) => (
+    <Link
+      key={href}
+      href={href}
+      onClick={() => setMobileOpen(false)}
+      title={mini ? label : undefined}
+      aria-label={mini ? label : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors",
+        mini ? "justify-center px-0" : "px-3",
+        isActive(href)
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      <Icon name={icon} size={18} />
+      {!mini && label}
+    </Link>
   );
 
-  const sidebarInner = (
+  // `mini` = the icon-only rail. The mobile drawer is always full-width.
+  const sidebarInner = (mini: boolean) => (
     <>
-      <div className="flex h-16 items-center border-b border-border px-5">
-        <BrandLockup />
-      </div>
-      {nav}
-      <div className="border-t border-border p-3">
+      <div
+        className={cn(
+          "flex h-16 items-center border-b border-border",
+          mini ? "justify-center px-2" : "px-4",
+        )}
+      >
         <Link
-          href="/settings"
+          href="/dashboard"
           onClick={() => setMobileOpen(false)}
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-            isActive("/settings")
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
+          aria-label="Go to dashboard"
+          className="rounded-md transition-opacity hover:opacity-80 focus-visible:focus-ring"
         >
-          <Icon name="settings" size={18} />
-          Settings
+          {mini ? <BrandMark size={30} /> : <BrandLockup />}
         </Link>
       </div>
+
+      <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4">
+        {NAV.map((group, gi) => (
+          <div key={gi} className="flex flex-col gap-1">
+            {group.label && !mini && (
+              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                {group.label}
+              </div>
+            )}
+            {group.items.map((item) => navLink(item.href, item.label, item.icon, mini))}
+          </div>
+        ))}
+      </nav>
+
+      <div className="border-t border-border p-3">{navLink("/settings", "Settings", "settings", mini)}</div>
     </>
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
-        {sidebarInner}
+    <div className={cn("flex min-h-screen bg-background", dragging && "cursor-ew-resize select-none")}>
+      {/* Desktop sidebar — resizable, and collapsible to an icon-only rail */}
+      <aside
+        style={{ width: collapsed ? RAIL_WIDTH : width }}
+        className={cn(
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-card lg:flex",
+          !dragging && "transition-[width] duration-200 ease-out",
+        )}
+      >
+        {sidebarInner(collapsed)}
+
+        {/* Edge handle: click = collapse/expand, drag = set an exact width */}
+        <button
+          onMouseDown={onHandleMouseDown}
+          aria-label="Resize sidebar, or click to collapse"
+          title="Drag to resize · click to collapse"
+          className="group absolute right-0 top-1/2 z-20 hidden h-12 w-4 -translate-y-1/2 translate-x-1/2 cursor-ew-resize items-center justify-center rounded-full border border-border bg-card shadow-sm hover:border-primary/40 lg:flex"
+        >
+          <span className="h-5 w-[3px] rounded-full bg-border transition-colors group-hover:bg-primary" />
+        </button>
       </aside>
 
       {/* Mobile drawer */}
@@ -123,7 +206,7 @@ export function AppShell({
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <aside className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-border bg-card">
-            {sidebarInner}
+            {sidebarInner(false)}
           </aside>
         </div>
       )}

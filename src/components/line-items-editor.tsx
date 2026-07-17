@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Icon } from "@/components/icons";
@@ -36,6 +36,9 @@ export function LineItemsEditor({
   currency,
   name = "items",
   initialRows,
+  discountType = "none",
+  discountValue = 0,
+  onRowsChange,
 }: {
   products: EditorProduct[];
   priceField: "sellingPrice" | "purchasePrice";
@@ -43,6 +46,11 @@ export function LineItemsEditor({
   currency: string;
   name?: string;
   initialRows?: InitialRow[];
+  /** Live discount to fold into the shown totals (sales only). */
+  discountType?: "none" | "amount" | "percentage";
+  discountValue?: number;
+  /** Fires whenever the rows change, so a parent can persist the working edit. */
+  onRowsChange?: (rows: InitialRow[]) => void;
 }) {
   const counter = useRef(initialRows && initialRows.length > 0 ? initialRows.length : 1);
   const [rows, setRows] = useState<Row[]>(() => {
@@ -77,8 +85,32 @@ export function LineItemsEditor({
     () => round2(rows.reduce((a, r) => a + (r.quantity || 0) * (r.unitPrice || 0), 0)),
     [rows],
   );
-  const tax = round2(subtotal * (taxRate / 100));
-  const total = round2(subtotal + tax);
+  // Discount is applied to the subtotal before tax — mirrors calculateSaleTotals
+  // on the server so the preview matches what gets stored.
+  const discountAmount =
+    discountType === "amount"
+      ? round2(Math.max(0, discountValue))
+      : discountType === "percentage"
+        ? round2((subtotal * Math.max(0, discountValue)) / 100)
+        : 0;
+  const overDiscount = discountType !== "none" && discountAmount > subtotal;
+  const discountedSubtotal = round2(Math.max(0, subtotal - discountAmount));
+  const tax = round2(discountedSubtotal * (taxRate / 100));
+  const total = round2(discountedSubtotal + tax);
+
+  // Report the working rows up so a parent can persist them across navigation.
+  useEffect(() => {
+    onRowsChange?.(
+      rows.map((r) => ({
+        productId: r.productId || null,
+        description: r.description,
+        quantity: r.quantity,
+        unitPrice: r.unitPrice,
+      })),
+    );
+    // Intentionally only depend on rows; onRowsChange identity may change per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   const payload = JSON.stringify(
     rows
@@ -166,6 +198,15 @@ export function LineItemsEditor({
           <span className="text-muted-foreground">Subtotal</span>
           <span className="tabular-nums">{money(subtotal, currency)}</span>
         </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-success">
+            <span>
+              Discount
+              {discountType === "percentage" ? ` (${discountValue}%)` : ""}
+            </span>
+            <span className="tabular-nums">- {money(discountAmount, currency)}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-muted-foreground">Tax ({taxRate}%)</span>
           <span className="tabular-nums">{money(tax, currency)}</span>
@@ -174,6 +215,12 @@ export function LineItemsEditor({
           <span>Total</span>
           <span className="tabular-nums">{money(total, currency)}</span>
         </div>
+        {overDiscount && (
+          <p className="flex items-center gap-1 pt-1 text-xs text-destructive">
+            <Icon name="alert" size={13} />
+            Discount is more than the subtotal — lower it before publishing.
+          </p>
+        )}
       </div>
     </div>
   );

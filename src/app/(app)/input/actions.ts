@@ -28,6 +28,8 @@ export interface Draft {
   items: DraftItem[];
   amount: number | null;
   category: string | null;
+  discountType: "none" | "amount" | "percentage";
+  discountValue: number;
   note: string;
 }
 
@@ -89,6 +91,8 @@ export async function parseTextAction(text: string): Promise<ParseResult> {
           items: [],
           amount: parsed.amount ?? null,
           category: parsed.category ?? "General",
+          discountType: "none",
+          discountValue: 0,
           note: text.trim(),
         },
       };
@@ -152,6 +156,9 @@ export async function parseTextAction(text: string): Promise<ParseResult> {
         items,
         amount: parsed.amount ?? null,
         category: null,
+        // Discount only applies to sales; ignored downstream for purchases.
+        discountType: effectiveType === "sale" ? parsed.discountType : "none",
+        discountValue: effectiveType === "sale" ? parsed.discountValue : 0,
         note: text.trim(),
       },
     };
@@ -218,6 +225,8 @@ export async function parseImageAction(dataUrl: string): Promise<ParseResult> {
         items: items.length ? items : [{ productId: null, description: "Item", quantity: 1, unitPrice: 0 }],
         amount: invoice.total ?? null,
         category: null,
+        discountType: "none",
+        discountValue: 0,
         note: "Extracted from image",
       },
     };

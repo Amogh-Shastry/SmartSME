@@ -204,6 +204,15 @@ function SaleDetailView({
       <div className="flex justify-end">
         <div className="w-full max-w-xs space-y-1.5 text-sm">
           <Row label="Subtotal" value={money(sale.subtotal, currency)} />
+          {sale.discountAmount > 0 && (
+            <div className="flex justify-between text-success">
+              <span>
+                Discount
+                {sale.discountType === "percentage" ? ` (${sale.discountValue}%)` : ""}
+              </span>
+              <span className="tabular-nums">- {money(sale.discountAmount, currency)}</span>
+            </div>
+          )}
           <Row label="Tax" value={money(sale.tax, currency)} />
           <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
             <span>Total</span>

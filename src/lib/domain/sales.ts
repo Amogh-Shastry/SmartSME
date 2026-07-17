@@ -4,7 +4,7 @@ import * as s from "@/db/schema";
 import { publish } from "@/lib/events/publish";
 import { paymentStatusFor } from "@/lib/workflow/engine";
 import { drainQueue } from "@/worker/loop";
-import { round2 } from "@/lib/utils";
+import { money, round2 } from "@/lib/utils";
 import { assertPartyOwned, cleanLineItems, loadOwnedProducts } from "./line-items";
 
 export interface SaleLineInput {
@@ -80,12 +80,22 @@ export async function createSale(businessId: string, input: CreateSaleInput) {
 
   const [biz] = await db.select().from(s.businesses).where(eq(s.businesses.id, businessId));
   const subtotal = round2(items.reduce((a, i) => a + i.quantity * i.unitPrice, 0));
-  const { tax, total, discountAmount } = calculateSaleTotals(
-    subtotal,
-    biz.taxRate,
-    input.discountType ?? "none",
-    input.discountValue ?? 0,
-  );
+  const discountType = input.discountType ?? "none";
+  const discountValue = input.discountValue ?? 0;
+  if (discountType !== "none" && !(discountValue >= 0)) {
+    throw new Error("Discount can't be negative.");
+  }
+  const { tax, total, discountAmount } = calculateSaleTotals(subtotal, biz.taxRate, discountType, discountValue);
+  // Block a discount larger than the goods are worth (e.g. ₹300 off a ₹200 sale,
+  // or a percentage over 100). The confirm/new-sale screen surfaces the message.
+  if (discountType !== "none" && discountAmount > round2(subtotal)) {
+    throw new Error(
+      `Discount (${money(discountAmount, biz.currency)}) is more than the sale value (${money(
+        subtotal,
+        biz.currency,
+      )}). Lower the discount to continue.`,
+    );
+  }
   const rawPaid = input.amountPaid ?? 0;
   if (!Number.isFinite(rawPaid)) throw new Error("Amount paid must be a valid number.");
   const amountPaid = round2(Math.max(0, Math.min(rawPaid, total)));
@@ -105,6 +115,9 @@ export async function createSale(businessId: string, input: CreateSaleInput) {
         partyId: input.partyId || null,
         invoiceNumber,
         subtotal,
+        discountType,
+        discountValue,
+        discountAmount,
         tax,
         total,
         amountPaid,
