@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { loadOverview } from "@/lib/analytics";
 import { PageHeader, StatCard, SectionCard, EmptyState } from "@/components/ui/misc";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { MiniBars } from "@/components/ui/bar-list";
+import { LineChart } from "@/components/ui/bar-list";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PaymentBadge } from "@/components/status";
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="rounded-xl bg-[linear-gradient(180deg,color-mix(in_oklab,var(--primary)_5%,transparent),transparent)] p-2">
-              <MiniBars data={o.revenueSeries} height={160} />
+              <LineChart data={o.revenueSeries} height={210} />
             </div>
           </CardContent>
         </Card>

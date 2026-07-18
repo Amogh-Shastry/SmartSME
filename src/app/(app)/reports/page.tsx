@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { loadOverview } from "@/lib/analytics";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui/misc";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { BarList, MiniBars } from "@/components/ui/bar-list";
+import { BarList, LineChart } from "@/components/ui/bar-list";
 import { Icon } from "@/components/icons";
 import { money } from "@/lib/utils";
 
@@ -35,7 +35,7 @@ export default async function ReportsPage() {
           <CardTitle>Revenue (last 14 days)</CardTitle>
         </CardHeader>
         <CardContent>
-          <MiniBars data={o.revenueSeries} height={160} />
+          <LineChart data={o.revenueSeries} height={210} />
         </CardContent>
       </Card>
 

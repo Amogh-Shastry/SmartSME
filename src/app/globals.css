@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700;750;800&display=swap");
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -7,8 +8,8 @@
 /* the default; the .dark class on <html> flips them.                  */
 /* ------------------------------------------------------------------ */
 :root {
-  --background: #f6f7fb;
-  --foreground: #151735;
+  --background: #f8f9ff;
+  --foreground: #11142f;
 
   --card: #ffffff;
   --card-foreground: #151735;
@@ -16,11 +17,11 @@
   --popover: #ffffff;
   --popover-foreground: #1a1a1e;
 
-  --muted: #f2f3fa;
-  --muted-foreground: #69708e;
+  --muted: #f2f3fb;
+  --muted-foreground: #667197;
 
-  --primary: #5037f4;
-  --primary-hover: #4228d9;
+  --primary: #5b32f5;
+  --primary-hover: #4822d7;
   --primary-foreground: #ffffff;
 
   --secondary: #f0efff;
@@ -40,8 +41,8 @@
   --info: #2563eb;
   --info-foreground: #ffffff;
 
-  --border: #e7e8f1;
-  --input: #dfe1ed;
+  --border: #e7e9f4;
+  --input: #dfe2ef;
   --ring: #6249f5;
 
   --chart-1: #4f46e5;
@@ -50,31 +51,31 @@
   --chart-4: #ec4899;
   --chart-5: #14b8a6;
 
-  --radius: 0.875rem;
+  --radius: 1rem;
 }
 
 .dark {
-  --background: #07070a;
-  --foreground: #f5f5fb;
+  --background: #0a0b14;
+  --foreground: #f6f6ff;
 
-  --card: #0e0e14;
+  --card: #12131f;
   --card-foreground: #f5f5fb;
 
-  --popover: #111119;
+  --popover: #171825;
   --popover-foreground: #f5f5fb;
 
-  --muted: #181820;
-  --muted-foreground: #9999aa;
+  --muted: #1b1d2b;
+  --muted-foreground: #a3a8c2;
 
   --primary: #6847ff;
   --primary-hover: #8067ff;
   --primary-foreground: #ffffff;
 
-  --secondary: #1c1837;
-  --secondary-foreground: #e6e0ff;
+  --secondary: #242040;
+  --secondary-foreground: #e9e4ff;
 
-  --accent: #211653;
-  --accent-foreground: #d8d0ff;
+  --accent: #2a2156;
+  --accent-foreground: #e0d9ff;
 
   --destructive: #f05252;
   --destructive-hover: #f87171;
@@ -87,8 +88,8 @@
   --info: #60a5fa;
   --info-foreground: #0a1a33;
 
-  --border: #292933;
-  --input: #343440;
+  --border: #282a3c;
+  --input: #303247;
   --ring: #8067ff;
 
   --chart-1: #818cf8;
@@ -96,6 +97,12 @@
   --chart-3: #fbbf24;
   --chart-4: #f472b6;
   --chart-5: #2dd4bf;
+}
+
+.dark body {
+  background-image:
+    radial-gradient(circle at 46% -22%, rgb(104 71 255 / 0.14), transparent 35rem),
+    linear-gradient(135deg, #0b0c16 0%, #0d0e1a 48%, #0a0b14 100%);
 }
 
 @theme inline {
@@ -143,9 +150,7 @@
   --shadow-lg: 0 6px 12px -3px rgb(16 24 40 / 0.07), 0 16px 32px -8px rgb(16 24 40 / 0.12);
   --shadow-xl: 0 10px 20px -6px rgb(16 24 40 / 0.10), 0 28px 56px -12px rgb(16 24 40 / 0.18);
 
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, "Noto Sans", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @layer base {
@@ -161,7 +166,9 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    background-image: radial-gradient(circle at 45% -20%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 34rem);
+    background-image:
+      radial-gradient(circle at 46% -22%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 35rem),
+      linear-gradient(135deg, #fbfcff 0%, #f7f8ff 48%, #f9f9fd 100%);
   }
   ::selection {
     background: color-mix(in oklab, var(--primary) 28%, transparent);

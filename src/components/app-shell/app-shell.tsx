@@ -130,10 +130,10 @@ export function AppShell({
       title={mini ? label : undefined}
       aria-label={mini ? label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-[background-color,color,box-shadow]",
+        "flex items-center gap-3 rounded-xl py-2.5 text-sm font-semibold transition-[background-color,color,box-shadow]",
         mini ? "justify-center px-0" : "px-3",
         isActive(href)
-          ? "bg-accent text-accent-foreground shadow-sm"
+          ? "bg-[linear-gradient(100deg,color-mix(in_oklab,var(--primary)_15%,white),color-mix(in_oklab,var(--primary)_7%,white))] text-primary shadow-[0_7px_18px_-12px_color-mix(in_oklab,var(--primary)_75%,transparent)]"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
@@ -175,7 +175,7 @@ export function AppShell({
       </nav>
 
       {!mini && (
-        <div className="mx-3 mb-4 rounded-2xl border border-primary/15 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--primary)_15%,var(--card)),var(--card))] p-4">
+        <div className="mx-3 mb-4 overflow-hidden rounded-2xl border border-primary/10 bg-[linear-gradient(145deg,color-mix(in_oklab,var(--primary)_13%,var(--card)),var(--card)_68%)] p-4 shadow-sm">
           <p className="text-sm font-semibold">Grow your business</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">Use Smart Input to turn everyday notes into records.</p>
           <Link href="/input" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
@@ -193,7 +193,7 @@ export function AppShell({
       <aside
         style={{ width: collapsed ? RAIL_WIDTH : width }}
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-xl lg:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/70 bg-white/85 backdrop-blur-xl dark:border-white/[0.07] dark:bg-[#10111b]/90 lg:flex",
           !dragging && "transition-[width] duration-200 ease-out",
         )}
       >
@@ -222,7 +222,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex h-20 items-center gap-3 border-b border-border/70 bg-background/75 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-20 items-center gap-3 border-b border-border/60 bg-background/75 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
           <button
             onClick={() => setMobileOpen(true)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted lg:hidden"
@@ -231,12 +231,12 @@ export function AppShell({
             <Icon name="menu" size={20} />
           </button>
           <div className="hidden min-w-0 lg:block">
-            <p className="text-lg font-bold tracking-[-0.03em]">Welcome back, {userName.split(" ")[0]}!</p>
+            <p className="text-lg font-extrabold tracking-[-0.04em]">Welcome back, {userName.split(" ")[0]}! <span aria-hidden="true">👋</span></p>
             <p className="mt-0.5 text-xs text-muted-foreground">Here&apos;s what&apos;s happening with {businessName} today.</p>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <label className="hidden h-11 w-72 items-center gap-2 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-sm xl:flex">
+            <label className="hidden h-11 w-72 items-center gap-2 rounded-2xl border border-white bg-card px-4 text-muted-foreground shadow-[0_4px_18px_rgb(32_36_72_/_0.08)] dark:border-white/[0.07] dark:shadow-[0_4px_18px_rgb(0_0_0_/_0.22)] xl:flex">
               <Icon name="search" size={18} />
               <input aria-label="Search" placeholder="Search anything..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
               <kbd className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold">⌘ K</kbd>
@@ -255,7 +255,7 @@ export function AppShell({
             </Link>
             <ThemeToggle />
             <div className="ml-1 flex items-center gap-2 border-l border-border pl-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#eeeaff,#f8f6ff)] text-xs font-bold text-primary dark:bg-[linear-gradient(135deg,#29214c,#17152b)]">
                 {initials(userName)}
               </span>
               <div className="hidden leading-tight sm:block">

@@ -10,7 +10,7 @@ export function Table({ className, ...props }: React.HTMLAttributes<HTMLTableEle
 }
 
 export function THead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("[&_th]:text-muted-foreground", className)} {...props} />;
+  return <thead className={cn("bg-muted/55 [&_th]:text-muted-foreground", className)} {...props} />;
 }
 
 export function TBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -18,7 +18,7 @@ export function TBody({ className, ...props }: React.HTMLAttributes<HTMLTableSec
 }
 
 export function TR({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("hover:bg-primary/[0.035] transition-colors", className)} {...props} />;
+  return <tr className={cn("hover:bg-primary/[0.04] transition-colors", className)} {...props} />;
 }
 
 export function TH({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {

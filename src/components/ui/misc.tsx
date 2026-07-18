@@ -15,7 +15,7 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-[-0.035em] sm:text-[1.75rem]">{title}</h1>
+        <h1 className="text-2xl font-extrabold tracking-[-0.045em] sm:text-[1.75rem]">{title}</h1>
         {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
@@ -40,11 +40,11 @@ export function StatCard({
   href?: string;
 }) {
   const toneBg: Record<string, string> = {
-    primary: "bg-accent text-accent-foreground",
-    success: "bg-success/15 text-success",
-    warning: "bg-warning/15 text-warning",
-    destructive: "bg-destructive/15 text-destructive",
-    info: "bg-info/15 text-info",
+    primary: "bg-primary/10 text-primary",
+    success: "bg-success/10 text-success",
+    warning: "bg-warning/10 text-warning",
+    destructive: "bg-destructive/10 text-destructive",
+    info: "bg-info/10 text-info",
   };
   const toneLine: Record<string, string> = {
     primary: "from-primary via-primary/70 to-primary/15",
@@ -56,15 +56,15 @@ export function StatCard({
   const card = (
     <Card
       className={cn(
-        "relative overflow-hidden p-5 sm:p-5",
+        "relative overflow-hidden p-5 sm:p-5 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_100%_0%,color-mix(in_oklab,var(--primary)_6%,transparent),transparent_55%)]",
         href &&
           "h-full transition-[box-shadow,border-color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:border-foreground/20 group-hover:shadow-md",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="mt-2 truncate text-2xl font-bold tracking-[-0.035em]">{value}</p>
+          <p className="mt-2 truncate text-2xl font-extrabold tracking-[-0.045em]">{value}</p>
           {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
         </div>
         {icon && (
@@ -78,7 +78,7 @@ export function StatCard({
           </span>
         )}
       </div>
-      <div className={cn("mt-5 h-1 w-full rounded-full bg-gradient-to-r", toneLine[tone])} />
+      <div className={cn("relative mt-5 h-1 w-full rounded-full bg-gradient-to-r", toneLine[tone])} />
     </Card>
   );
 
@@ -136,7 +136,7 @@ export function SectionCard({
 }) {
   return (
     <Card className={className}>
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+      <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div>
           <h3 className="font-semibold tracking-tight">{title}</h3>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
