@@ -77,9 +77,8 @@ export interface SettleResult {
 /**
  * Settles every outstanding invoice (customer) or bill (supplier) for a single
  * party in one transaction: each open document is marked fully paid and the
- * party's running balance is reduced by the total applied. Mirrors the
- * per-document `recordPayment` math so balances stay consistent regardless of
- * how the balance was originally accrued.
+ * party's running balance is cleared. This includes an opening balance, which
+ * is not represented by an individual invoice or bill.
  */
 export async function settleParty(businessId: string, partyId: string): Promise<SettleResult> {
   return db.transaction(async (tx) => {
@@ -136,12 +135,10 @@ export async function settleParty(businessId: string, partyId: string): Promise<
       }
     }
 
-    if (applied > 0) {
-      await tx
-        .update(s.parties)
-        .set({ balance: sql`${s.parties.balance} - ${applied}` })
-        .where(eq(s.parties.id, partyId));
-    }
+    // Settling a party is the explicit "clear this balance" action. Set the
+    // ledger balance to zero instead of only subtracting document dues, because
+    // it may also contain an opening balance that has no invoice/bill row.
+    await tx.update(s.parties).set({ balance: 0 }).where(eq(s.parties.id, partyId));
 
     return { count, total: applied };
   });
@@ -150,8 +147,8 @@ export async function settleParty(businessId: string, partyId: string): Promise<
 /**
  * Marks every outstanding document of one kind as paid across the whole
  * business — "mark all receivables/payables as paid". Walk-in documents with no
- * linked party are still settled; parties that had open documents have their
- * balances reduced by exactly what was applied to them.
+ * linked party are still settled; the corresponding customer or supplier
+ * balances are cleared as well.
  */
 export async function settleAllOutstanding(
   businessId: string,
@@ -160,7 +157,6 @@ export async function settleAllOutstanding(
   return db.transaction(async (tx) => {
     let applied = 0;
     let count = 0;
-    const perParty = new Map<string, number>();
 
     if (kind === "payable") {
       const bills = await tx
@@ -176,7 +172,6 @@ export async function settleAllOutstanding(
           .where(eq(s.purchases.id, bill.id));
         applied = round2(applied + due);
         count += 1;
-        if (bill.partyId) perParty.set(bill.partyId, round2((perParty.get(bill.partyId) ?? 0) + due));
       }
     } else {
       const invoices = await tx
@@ -192,16 +187,21 @@ export async function settleAllOutstanding(
           .where(eq(s.sales.id, inv.id));
         applied = round2(applied + due);
         count += 1;
-        if (inv.partyId) perParty.set(inv.partyId, round2((perParty.get(inv.partyId) ?? 0) + due));
       }
     }
 
-    for (const [partyId, amount] of perParty) {
-      await tx
-        .update(s.parties)
-        .set({ balance: sql`${s.parties.balance} - ${amount}` })
-        .where(and(eq(s.parties.id, partyId), eq(s.parties.businessId, businessId)));
-    }
+    // The page cards are based on party balances. Clear every balance of the
+    // selected kind as part of this bulk-settlement action, including opening
+    // balances that do not correspond to a specific invoice or bill.
+    await tx
+      .update(s.parties)
+      .set({ balance: 0 })
+      .where(
+        and(
+          eq(s.parties.businessId, businessId),
+          eq(s.parties.type, kind === "payable" ? "supplier" : "customer"),
+        ),
+      );
 
     return { count, total: applied };
   });
