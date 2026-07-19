@@ -184,7 +184,7 @@ export function AppShell({
       <aside
         style={{ width: collapsed ? RAIL_WIDTH : width }}
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/70 bg-white/85 backdrop-blur-xl dark:border-white/[0.07] dark:bg-[#0a0a0c]/90 lg:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/70 bg-white/85 backdrop-blur-xl dark:border-white/[0.07] dark:bg-[#0a0a0c]/90 lg:flex print:!hidden",
           !dragging && "transition-[width] duration-200 ease-out",
         )}
       >
@@ -203,7 +203,7 @@ export function AppShell({
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-40 lg:hidden print:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <aside className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-border bg-card">
             {sidebarInner(false)}
@@ -213,7 +213,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex h-20 items-center gap-3 border-b border-border/60 bg-background/75 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-20 items-center gap-3 border-b border-border/60 bg-background/75 px-4 backdrop-blur-xl sm:px-6 lg:px-8 print:hidden">
           <button
             onClick={() => setMobileOpen(true)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted lg:hidden"

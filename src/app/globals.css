@@ -198,3 +198,19 @@
   outline: none;
   box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in oklab, var(--ring) 70%, transparent);
 }
+
+/* Print: only the page content (e.g. an invoice) — the app chrome is hidden via
+   `print:hidden`. Give the content the full page and print colours faithfully. */
+@media print {
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

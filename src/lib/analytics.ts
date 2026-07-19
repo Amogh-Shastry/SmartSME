@@ -167,3 +167,80 @@ export async function loadOverview(businessId: string, days = 14): Promise<Overv
 function fmt(n: number): string {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
+
+export interface RevenuePoint {
+  /** Short label for the x-axis. */
+  label: string;
+  value: number;
+  /** Fuller label shown in the hover tooltip. */
+  full: string;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * Revenue over the last `days`, bucketed to keep the point count readable:
+ * daily up to ~a month, weekly up to ~3 months, then whole calendar months.
+ */
+export async function getRevenueSeries(businessId: string, days: number): Promise<RevenuePoint[]> {
+  const sales = await db
+    .select({ createdAt: s.sales.createdAt, total: s.sales.total })
+    .from(s.sales)
+    .where(and(eq(s.sales.businessId, businessId), ne(s.sales.status, "cancelled")));
+
+  const now = new Date();
+  const oneDay = 86_400_000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const endExclusive = startOfToday + oneDay;
+
+  type Bucket = { start: number; end: number; value: number; label: string; full: string };
+  const buckets: Bucket[] = [];
+
+  if (days <= 31) {
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const start = d.getTime();
+      buckets.push({
+        start,
+        end: start + oneDay,
+        value: 0,
+        label: `${d.getDate()}`,
+        full: `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+      });
+    }
+  } else if (days <= 92) {
+    const weeks = Math.ceil(days / 7);
+    for (let b = weeks - 1; b >= 0; b--) {
+      const end = endExclusive - b * 7 * oneDay;
+      const start = end - 7 * oneDay;
+      const sd = new Date(start);
+      buckets.push({
+        start,
+        end,
+        value: 0,
+        label: `${sd.getDate()} ${MONTHS[sd.getMonth()]}`,
+        full: `Week of ${sd.getDate()} ${MONTHS[sd.getMonth()]} ${sd.getFullYear()}`,
+      });
+    }
+  } else {
+    const months = days >= 330 ? 12 : Math.max(1, Math.round(days / 30));
+    for (let m = months - 1; m >= 0; m--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+      buckets.push({
+        start: d.getTime(),
+        end: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
+        value: 0,
+        label: MONTHS[d.getMonth()],
+        full: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+      });
+    }
+  }
+
+  for (const sale of sales) {
+    const t = new Date(sale.createdAt).getTime();
+    const bk = buckets.find((bb) => t >= bb.start && t < bb.end);
+    if (bk) bk.value = round2(bk.value + sale.total);
+  }
+
+  return buckets.map((b) => ({ label: b.label, value: b.value, full: b.full }));
+}

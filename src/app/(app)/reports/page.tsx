@@ -1,15 +1,19 @@
 import { requireUser } from "@/lib/auth/current-user";
-import { loadOverview } from "@/lib/analytics";
+import { loadOverview, getRevenueSeries } from "@/lib/analytics";
 import { PageHeader, StatCard, SectionCard } from "@/components/ui/misc";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { BarList, LineChart } from "@/components/ui/bar-list";
+import { BarList } from "@/components/ui/bar-list";
 import { Icon } from "@/components/icons";
 import { money } from "@/lib/utils";
+import { RevenueChart } from "./revenue-chart";
+
+const DEFAULT_RANGE_DAYS = 30;
 
 export default async function ReportsPage() {
   const { business } = await requireUser();
   const cur = business.currency;
   const o = await loadOverview(business.id, 14);
+  const revenueSeries = await getRevenueSeries(business.id, DEFAULT_RANGE_DAYS);
 
   const netCash = o.totals.sales - o.totals.purchases - o.totals.expenses;
 
@@ -32,10 +36,10 @@ export default async function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Revenue (last 14 days)</CardTitle>
+          <CardTitle>Revenue</CardTitle>
         </CardHeader>
         <CardContent>
-          <LineChart data={o.revenueSeries} height={210} />
+          <RevenueChart initialData={revenueSeries} initialDays={DEFAULT_RANGE_DAYS} currency={cur} />
         </CardContent>
       </Card>
 
