@@ -6,7 +6,7 @@ type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[linear-gradient(135deg,#6f42ff,#4d22eb)] text-primary-foreground shadow-[0_8px_18px_-7px_color-mix(in_oklab,var(--primary)_90%,transparent)] hover:shadow-md active:shadow-sm",
+    "bg-[linear-gradient(135deg,#6f42ff,#4d22eb)] text-primary-foreground shadow-[0_8px_18px_-7px_color-mix(in_oklab,var(--primary)_90%,transparent)] hover:shadow-md active:shadow-sm dark:!bg-[#f0f941] dark:!bg-none dark:hover:!bg-[#f0f941] dark:hover:!bg-none",
   secondary:
     "border border-border bg-secondary text-secondary-foreground hover:bg-muted",
   outline:

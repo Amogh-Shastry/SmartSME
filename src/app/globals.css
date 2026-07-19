@@ -55,54 +55,54 @@
 }
 
 .dark {
-  --background: #0a0b14;
-  --foreground: #f6f6ff;
+  --background: #050506;
+  --foreground: #f7f5fa;
 
-  --card: #12131f;
-  --card-foreground: #f5f5fb;
+  --card: #0c0c0f;
+  --card-foreground: #f7f5fa;
 
-  --popover: #171825;
-  --popover-foreground: #f5f5fb;
+  --popover: #121215;
+  --popover-foreground: #f7f5fa;
 
-  --muted: #1b1d2b;
-  --muted-foreground: #a3a8c2;
+  --muted: #161519;
+  --muted-foreground: #aaa6af;
 
-  --primary: #6847ff;
-  --primary-hover: #8067ff;
-  --primary-foreground: #ffffff;
+  --primary: #f0f941;
+  --primary-hover: #f0f941;
+  --primary-foreground: #141116;
 
-  --secondary: #242040;
-  --secondary-foreground: #e9e4ff;
+  --secondary: #1b1b1e;
+  --secondary-foreground: #f7f7f2;
 
-  --accent: #2a2156;
-  --accent-foreground: #e0d9ff;
+  --accent: #2b2c18;
+  --accent-foreground: #f0f941;
 
-  --destructive: #f05252;
-  --destructive-hover: #f87171;
+  --destructive: #f29a9a;
+  --destructive-hover: #ffc0c0;
   --destructive-foreground: #ffffff;
 
-  --success: #4ade80;
-  --success-foreground: #052e16;
-  --warning: #fbbf24;
-  --warning-foreground: #1c1207;
-  --info: #60a5fa;
-  --info-foreground: #0a1a33;
+  --success: #78d6a3;
+  --success-foreground: #08150f;
+  --warning: #f0bf72;
+  --warning-foreground: #1a1208;
+  --info: #7ec7e8;
+  --info-foreground: #07161c;
 
-  --border: #282a3c;
-  --input: #303247;
-  --ring: #8067ff;
+  --border: #29272d;
+  --input: #25232a;
+  --ring: #f0f941;
 
-  --chart-1: #818cf8;
-  --chart-2: #38bdf8;
-  --chart-3: #fbbf24;
-  --chart-4: #f472b6;
-  --chart-5: #2dd4bf;
+  --chart-1: #f0f941;
+  --chart-2: #7ec7e8;
+  --chart-3: #f0bf72;
+  --chart-4: #f29a9a;
+  --chart-5: #78d6a3;
 }
 
 .dark body {
   background-image:
-    radial-gradient(circle at 46% -22%, rgb(104 71 255 / 0.14), transparent 35rem),
-    linear-gradient(135deg, #0b0c16 0%, #0d0e1a 48%, #0a0b14 100%);
+    radial-gradient(circle at 46% -22%, rgb(240 249 65 / 0.08), transparent 35rem),
+    linear-gradient(135deg, #050506 0%, #09090b 48%, #050506 100%);
 }
 
 @theme inline {
